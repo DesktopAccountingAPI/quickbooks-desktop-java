@@ -1,0 +1,36 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: Java ${{ matrix.java }} (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: ubuntu-latest, java: "11" }
+          - { os: ubuntu-latest, java: "17" }
+          - { os: ubuntu-latest, java: "21" }
+          - { os: windows-latest, java: "21" }
+    steps:
+      - uses: actions/checkout@v7
+      - uses: jdx/mise-action@v5
+      # mise.toml pins Temurin 21 for releases; the matrix runs the same check on each supported LTS.
+      - name: Select Java ${{ matrix.java }}
+        if: matrix.java != '21'
+        shell: bash
+        run: |
+          mise use "java@temurin-${{ matrix.java }}"
+          mise install
+          mise exec -- java -version
+      - name: mise run check
+        run: mise run check

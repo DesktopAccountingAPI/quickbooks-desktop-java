@@ -1,0 +1,511 @@
+package com.desktopaccountingapi.quickbooksdesktop.core;
+
+import com.desktopaccountingapi.quickbooksdesktop.errors.ApiConnectionException;
+import com.desktopaccountingapi.quickbooksdesktop.errors.ApiErrorInfo;
+import com.desktopaccountingapi.quickbooksdesktop.errors.ApiException;
+import com.desktopaccountingapi.quickbooksdesktop.errors.ApiTimeoutException;
+import com.desktopaccountingapi.quickbooksdesktop.errors.DaapiException;
+import com.desktopaccountingapi.quickbooksdesktop.errors.RequestPendingException;
+import com.desktopaccountingapi.quickbooksdesktop.models.Request;
+import java.io.IOException;
+import java.net.URI;
+import java.net.http.HttpTimeoutException;
+import java.nio.charset.StandardCharsets;
+import java.security.SecureRandom;
+import java.time.Duration;
+import java.time.Instant;
+import java.util.Collections;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.function.Function;
+
+/**
+ * The SDK's HTTP engine: headers, idempotency keys, retries, error mapping, long-polling after a
+ * server timeout, async mode and pagination. Generated services call it; it is internal to the SDK
+ * and not a stable API.
+ */
+public final class ClientCore {
+    private static final OperationSpec REQUESTS_RETRIEVE = OperationSpec.of("requests.retrieve", "GET", 0);
+    private static final SecureRandom JITTER = new SecureRandom();
+    private static final ExecutorService READ_AHEAD = Executors.newCachedThreadPool(r -> {
+        Thread t = new Thread(r, "daapi-read-ahead");
+        t.setDaemon(true);
+        return t;
+    });
+
+    private final ClientOptions options;
+
+    /**
+     * Creates the engine.
+     *
+     * @param options resolved settings
+     */
+    public ClientCore(ClientOptions options) {
+        this.options = options;
+    }
+
+    /**
+     * The client settings.
+     *
+     * @return the settings
+     */
+    public ClientOptions options() {
+        return options;
+    }
+
+    /**
+     * Copy with another default end user, sharing the transport.
+     *
+     * @param endUserId the end user
+     * @return the copy
+     */
+    public ClientCore withEndUserId(String endUserId) {
+        if (endUserId == null || endUserId.isEmpty()) throw new IllegalArgumentException("endUserId is required");
+        return new ClientCore(options.withEndUserId(endUserId));
+    }
+
+    static ExecutorService readAhead() {
+        return READ_AHEAD;
+    }
+
+    /**
+     * Percent-encodes one path parameter.
+     *
+     * @param name parameter name, for the error message
+     * @param value the value
+     * @return the encoded segment
+     */
+    public static String pathParam(String name, String value) {
+        if (value == null || value.isEmpty()) throw new DaapiException(name + " is required");
+        return encode(value);
+    }
+
+    // ---------------------------------------------------------------- typed entry points
+
+    /**
+     * Runs a synchronous call and parses the result.
+     *
+     * @param op operation
+     * @param path request path with encoded parameters
+     * @param query query parameters, or null
+     * @param body JSON body, or null
+     * @param o per-call options
+     * @param parse result parser
+     * @param <T> result type
+     * @return the result
+     */
+    public <T> T call(OperationSpec op, String path, InputObject query, InputObject body, RequestOptions o, Function<Object, T> parse) {
+        return callWithResponse(op, path, query, body, o, parse).data();
+    }
+
+    /**
+     * Runs a synchronous call and returns the result with status and headers.
+     *
+     * @param op operation
+     * @param path request path with encoded parameters
+     * @param query query parameters, or null
+     * @param body JSON body, or null
+     * @param o per-call options
+     * @param parse result parser
+     * @param <T> result type
+     * @return the result and response metadata
+     */
+    public <T> ApiResponse<T> callWithResponse(OperationSpec op, String path, InputObject query, InputObject body, RequestOptions o, Function<Object, T> parse) {
+        Call c = new Call(op, o);
+        String json = body == null ? null : validated(body).toJson();
+        if (query != null) query.validate();
+        Transport.Response res;
+        try {
+            res = c.send(path, query, json, "application/json", "application/json", false);
+        } catch (ApiException e) {
+            String pending = pendingRequestId(e);
+            if (pending == null) throw e;
+            log("request " + pending + " still running after a server timeout; polling until the call deadline");
+            Polled polled = poll(pending, c.deadlineNanos, c.o);
+            return new ApiResponse<>(parseResult(op, polled.result, parse), polled.status, polled.headers);
+        }
+        return new ApiResponse<>(parseResult(op, parseJson(op, res.body()), parse), res.status(), res.headers());
+    }
+
+    /**
+     * Runs a call whose request and response bodies are XML text (passthrough).
+     *
+     * @param op operation
+     * @param path request path with encoded parameters
+     * @param xml request body
+     * @param o per-call options
+     * @return the response body
+     */
+    public String callXml(OperationSpec op, String path, String xml, RequestOptions o) {
+        if (xml == null) throw new DaapiException("xml is required");
+        Call c = new Call(op, o);
+        try {
+            return c.send(path, null, xml, "application/xml", "application/xml", false).body();
+        } catch (ApiException e) {
+            String pending = pendingRequestId(e);
+            if (pending == null) throw e;
+            Object result = poll(pending, c.deadlineNanos, c.o).result;
+            return result instanceof String ? (String) result : Json.write(result);
+        }
+    }
+
+    /**
+     * Sends a call in async mode ({@code Prefer: respond-async}).
+     *
+     * @param op operation
+     * @param path request path with encoded parameters
+     * @param query query parameters, or null
+     * @param body JSON body, or null
+     * @param o per-call options
+     * @param parse parser for the eventual result
+     * @param <T> result type
+     * @return a handle on the queued request
+     */
+    public <T> RequestHandle<T> enqueue(OperationSpec op, String path, InputObject query, InputObject body, RequestOptions o, Function<Object, T> parse) {
+        if (!op.has(OperationSpec.ASYNC)) throw new DaapiException(op.operationId() + " does not support async mode");
+        Call c = new Call(op, o);
+        String json = body == null ? null : validated(body).toJson();
+        if (query != null) query.validate();
+        Transport.Response res = c.send(path, query, json, "application/json", "application/json", true);
+        Object parsed = parseJson(op, res.body());
+        if (res.status() == 202) {
+            Request request = parseRequest(parsed);
+            return new RequestHandle<>(this, op, request.id(), request, parse, c.o);
+        }
+        // The API answered with the final result right away.
+        return RequestHandle.completed(this, op, res.headers().get("Daapi-Request-Id"), parseResult(op, parsed, parse), c.o);
+    }
+
+    /**
+     * Starts a cursor list.
+     *
+     * @param op operation
+     * @param path request path
+     * @param query first-page parameters, or null
+     * @param o per-call options
+     * @param item parser for one list item
+     * @param <T> item type
+     * @return a lazy pager; no request is sent until it is used
+     */
+    public <T> Pager<T> paginate(OperationSpec op, String path, InputObject query, RequestOptions o, Function<Object, T> item) {
+        if (query != null) query.validate();
+        return new Pager<>(this, op, path, query, o == null ? RequestOptions.NONE : o, item);
+    }
+
+    <T> Page<T> fetchPage(OperationSpec op, String path, InputObject query, RequestOptions o, Function<Object, T> item) {
+        Transport.Response res = new Call(op, o).send(path, query, null, null, "application/json", false);
+        Object parsed = parseJson(op, res.body());
+        try {
+            return Page.fromJson(parsed, item, res.headers().get("Daapi-Request-Id"));
+        } catch (RuntimeException e) {
+            throw new DaapiException("Could not parse the " + op.operationId() + " response: " + e.getMessage(), e);
+        }
+    }
+
+    // ---------------------------------------------------------------- request resources
+
+    /** Result of reading a request resource. */
+    static final class Polled {
+        final Object raw;
+        final Object result;
+        final int status;
+        final Headers headers;
+        final boolean done;
+
+        Polled(Object raw, Object result, int status, Headers headers, boolean done) {
+            this.raw = raw;
+            this.result = result;
+            this.status = status;
+            this.headers = headers;
+            this.done = done;
+        }
+    }
+
+    /**
+     * Reads a request resource once.
+     *
+     * @param id request ID
+     * @param waitSeconds long-poll seconds (0 to 60), or null for no wait
+     * @param o per-call options
+     * @return the raw request, its result when succeeded, and the response metadata
+     * @throws ApiException when the request ended in failure
+     */
+    Polled readRequest(String id, Integer waitSeconds, RequestOptions o) {
+        RequestOptions ro = o == null ? RequestOptions.NONE : o;
+        if (waitSeconds != null) {
+            // Each long-poll attempt may take up to waitSeconds; give it 10 s on top.
+            ro = ro.toBuilder().timeout(Duration.ofSeconds(waitSeconds + 10L)).build();
+        }
+        InputObject q = waitSeconds == null ? null : new WaitQuery(waitSeconds);
+        Transport.Response res = new Call(REQUESTS_RETRIEVE, ro).send("/v1/requests/" + pathParam("id", id), q, null, null, "application/json", false);
+        Object raw = parseJson(REQUESTS_RETRIEVE, res.body());
+        return interpret(id, raw, res);
+    }
+
+    /**
+     * Reads a request resource once without interpreting its status.
+     *
+     * @param id request ID
+     * @param o per-call options
+     * @return the parsed JSON
+     */
+    Object readRequestAnyStatus(String id, RequestOptions o) {
+        Transport.Response res = new Call(REQUESTS_RETRIEVE, o).send("/v1/requests/" + pathParam("id", id), null, null, null, "application/json", false);
+        return parseJson(REQUESTS_RETRIEVE, res.body());
+    }
+
+    private Polled interpret(String id, Object raw, Transport.Response res) {
+        Map<String, Object> m = Wire.object(raw, "Request");
+        String status = m.get("status") instanceof String ? (String) m.get("status") : "";
+        switch (status) {
+            case "succeeded":
+                if (Boolean.TRUE.equals(m.get("resultExpired"))) {
+                    throw new DaapiException("Request " + id + " succeeded, but its result is no longer stored (resultExpired).");
+                }
+                return new Polled(raw, m.get("result"), res.status(), res.headers(), true);
+            case "failed":
+            case "canceled":
+            case "outcome_unknown":
+                throw errorFromRequest(id, status, m.get("error"));
+            default:
+                return new Polled(raw, null, res.status(), res.headers(), false);
+        }
+    }
+
+    /**
+     * Long-polls a request until it finishes or the deadline passes.
+     *
+     * @param id request ID
+     * @param deadlineNanos {@link System#nanoTime()} deadline
+     * @param o per-call options
+     * @return the finished request
+     */
+    Polled poll(String id, long deadlineNanos, RequestOptions o) {
+        Request last = null;
+        while (true) {
+            long remaining = deadlineNanos - System.nanoTime();
+            if (remaining <= 0) throw new RequestPendingException(id, last);
+            int wait = (int) Math.min(60, Math.max(1, (remaining + 999_999_999L) / 1_000_000_000L));
+            Polled p = readRequest(id, wait, o);
+            if (p.done) return p;
+            last = parseRequest(p.raw);
+        }
+    }
+
+    static Request parseRequest(Object raw) {
+        try {
+            return Request.fromJson(raw);
+        } catch (RuntimeException e) {
+            throw new DaapiException("Could not parse the request resource: " + e.getMessage(), e);
+        }
+    }
+
+    private static ApiException errorFromRequest(String id, String status, Object error) {
+        Map<String, Object> e = new LinkedHashMap<>();
+        if (error instanceof Map) {
+            for (Map.Entry<?, ?> x : ((Map<?, ?>) error).entrySet()) e.put(String.valueOf(x.getKey()), x.getValue());
+        } else if ("outcome_unknown".equals(status)) {
+            e.put("type", "OUTCOME_UNKNOWN_ERROR");
+            e.put("outcome", "unknown");
+        }
+        Object http = e.get("httpStatusCode");
+        Integer code = http instanceof Number ? ((Number) http).intValue() : null;
+        return ApiException.create(ApiErrorInfo.of(code, e, Headers.empty(), null, "Request " + id + " ended with status " + status + "."));
+    }
+
+    private static String pendingRequestId(ApiException e) {
+        if (!"QBD_REQUEST_TIMEOUT".equals(e.code())) return null;
+        Object id = e.details().get("requestId");
+        return id instanceof String && !((String) id).isEmpty() ? (String) id : null;
+    }
+
+    // ---------------------------------------------------------------- helpers
+
+    private static InputObject validated(InputObject body) {
+        body.validate();
+        return body;
+    }
+
+    private static Object parseJson(OperationSpec op, String body) {
+        try {
+            return Json.parse(body);
+        } catch (Json.JsonException e) {
+            throw new DaapiException("The " + op.operationId() + " response is not valid JSON: " + e.getMessage(), e);
+        }
+    }
+
+    static <T> T parseResult(OperationSpec op, Object json, Function<Object, T> parse) {
+        try {
+            return parse.apply(json);
+        } catch (DaapiException e) {
+            throw e;
+        } catch (RuntimeException e) {
+            throw new DaapiException("Could not parse the " + op.operationId() + " response: " + e.getMessage(), e);
+        }
+    }
+
+    void log(String line) {
+        RequestLogger l = options.logger;
+        if (l == null) return;
+        try {
+            l.log(line);
+        } catch (RuntimeException ignored) {
+            // A failing logger never breaks a request.
+        }
+    }
+
+    private static final char[] HEX = "0123456789ABCDEF".toCharArray();
+
+    static String encode(String s) {
+        StringBuilder b = new StringBuilder();
+        for (byte x : s.getBytes(StandardCharsets.UTF_8)) {
+            int c = x & 0xff;
+            if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '-' || c == '.' || c == '_' || c == '~') {
+                b.append((char) c);
+            } else {
+                b.append('%').append(HEX[c >> 4]).append(HEX[c & 0xf]);
+            }
+        }
+        return b.toString();
+    }
+
+    static String queryString(InputObject query) {
+        if (query == null) return "";
+        List<Map.Entry<String, String>> pairs = query.queryPairs();
+        if (pairs.isEmpty()) return "";
+        StringBuilder b = new StringBuilder("?");
+        for (Map.Entry<String, String> p : pairs) {
+            if (b.length() > 1) b.append('&');
+            b.append(encode(p.getKey())).append('=').append(encode(p.getValue()));
+        }
+        return b.toString();
+    }
+
+    private static long seconds(Duration d) {
+        long s = d.getSeconds() + (d.getNano() > 0 ? 1 : 0);
+        return Math.max(1, s);
+    }
+
+    /** Query for long-polling a request resource. */
+    static final class WaitQuery extends InputObject {
+        WaitQuery(int waitSeconds) {
+            setOptional("waitSeconds", waitSeconds);
+        }
+    }
+
+    /** One logical call: fixed idempotency key, end user, timeouts and retry budget. */
+    final class Call {
+        final OperationSpec op;
+        final RequestOptions o;
+        final Duration attemptTimeout;
+        final long deadlineNanos;
+        final int maxRetries;
+        final String idempotencyKey;
+        final String endUserId;
+        final Duration serverTimeout;
+
+        Call(OperationSpec op, RequestOptions o) {
+            this.op = op;
+            this.o = o == null ? RequestOptions.NONE : o;
+            Duration timeout = this.o.timeout() != null ? this.o.timeout() : options.timeout;
+            this.serverTimeout = op.has(OperationSpec.SERVER_TIMEOUT) ? (this.o.serverTimeout() != null ? this.o.serverTimeout() : options.serverTimeout) : null;
+            if (serverTimeout != null && serverTimeout.plusSeconds(10).compareTo(timeout) > 0) timeout = serverTimeout.plusSeconds(10);
+            this.attemptTimeout = timeout;
+            this.deadlineNanos = System.nanoTime() + timeout.toNanos();
+            this.maxRetries = this.o.maxRetries() != null ? this.o.maxRetries() : options.maxRetries;
+            if (op.has(OperationSpec.END_USER)) {
+                String eu = this.o.endUserId() != null ? this.o.endUserId() : options.endUserId;
+                if (eu == null || eu.isEmpty()) {
+                    throw new DaapiException(op.operationId() + " runs against an end user's QuickBooks company file, but no end user is set. "
+                        + "Pass endUserId(...) to the client builder, use client.forEndUser(\"eu_...\"), or pass RequestOptions.endUser(\"eu_...\").");
+                }
+                this.endUserId = eu;
+            } else {
+                this.endUserId = null;
+            }
+            // One key per logical write, reused by every retry of it.
+            this.idempotencyKey = op.has(OperationSpec.WRITE) ? (this.o.idempotencyKey() != null ? this.o.idempotencyKey() : UUID.randomUUID().toString()) : null;
+        }
+
+        Transport.Response send(String path, InputObject query, String body, String contentType, String accept, boolean async) {
+            Map<String, String> headers = new LinkedHashMap<>();
+            headers.put("Authorization", "Bearer " + options.apiKey);
+            headers.put("Accept", accept);
+            headers.put("User-Agent", SdkInfo.USER_AGENT);
+            if (endUserId != null) headers.put("Daapi-End-User-Id", endUserId);
+            if (idempotencyKey != null) headers.put("Idempotency-Key", idempotencyKey);
+            if (serverTimeout != null) headers.put("Daapi-Timeout-Seconds", Long.toString(seconds(serverTimeout)));
+            if (async) {
+                headers.put("Prefer", "respond-async");
+                if (op.has(OperationSpec.QUEUE_TTL) && o.queueTtl() != null) headers.put("Daapi-Queue-Ttl-Seconds", Long.toString(seconds(o.queueTtl())));
+            }
+            if (body != null) headers.put("Content-Type", contentType + ("application/json".equals(contentType) ? "" : "; charset=utf-8"));
+            URI uri = URI.create(options.baseUrl + path + queryString(query));
+            Transport.Request req = new Transport.Request(op.method(), uri, Collections.unmodifiableMap(headers), body, attemptTimeout);
+            for (int attempt = 0; ; attempt++) {
+                long t0 = System.nanoTime();
+                Transport.Response res;
+                try {
+                    res = options.transport.send(req);
+                } catch (IOException e) {
+                    long ms = (System.nanoTime() - t0) / 1_000_000;
+                    boolean timeout = e instanceof HttpTimeoutException;
+                    String what = timeout ? "timed out after " + attemptTimeout.toMillis() + " ms" : "failed: " + e.getClass().getSimpleName() + (e.getMessage() == null ? "" : " " + e.getMessage());
+                    log(op.method() + " " + path + " " + what + " (attempt " + (attempt + 1) + ", " + ms + " ms)");
+                    if (attempt < maxRetries) {
+                        sleep(Retry.backoffMillis(attempt, JITTER), "after a network error");
+                        continue;
+                    }
+                    String msg = op.operationId() + " " + what + (attempt > 0 ? " (" + (attempt + 1) + " attempts)" : "");
+                    if (timeout) throw new ApiTimeoutException(msg, e);
+                    throw new ApiConnectionException(msg, e);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    throw new ApiConnectionException(op.operationId() + " was interrupted", e);
+                }
+                long ms = (System.nanoTime() - t0) / 1_000_000;
+                String rid = res.headers().get("Daapi-Request-Id");
+                log(op.method() + " " + path + " -> " + res.status() + (rid == null ? "" : " " + rid) + " (attempt " + (attempt + 1) + ", " + ms + " ms)");
+                if (res.status() >= 200 && res.status() < 300) return res;
+                ApiException err = toException(res);
+                Long retryAfter = Retry.retryAfterMillis(res.headers().get("Retry-After"), Instant.now());
+                boolean retry = attempt < maxRetries && Retry.shouldRetry(res.status(), res.headers().get("Daapi-Should-Retry"), err.outcome())
+                    && (retryAfter == null || retryAfter <= Retry.MAX_RETRY_AFTER_MILLIS);
+                if (!retry) throw err;
+                sleep(retryAfter != null ? retryAfter : Retry.backoffMillis(attempt, JITTER), "after HTTP " + res.status());
+            }
+        }
+
+        private void sleep(long millis, String why) {
+            log("retrying " + op.operationId() + " in " + millis + " ms " + why);
+            if (millis <= 0) return;
+            try {
+                Thread.sleep(millis);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw new ApiConnectionException(op.operationId() + " was interrupted while waiting to retry", e);
+            }
+        }
+    }
+
+    static ApiException toException(Transport.Response res) {
+        Object parsed = null;
+        try {
+            parsed = Json.parse(res.body());
+        } catch (Json.JsonException ignored) {
+            // Not JSON: falls through to the base ApiException below.
+        }
+        if (parsed instanceof Map && ((Map<?, ?>) parsed).get("error") instanceof Map) {
+            @SuppressWarnings("unchecked")
+            Map<String, Object> error = (Map<String, Object>) ((Map<?, ?>) parsed).get("error");
+            return ApiException.create(ApiErrorInfo.of(res.status(), error, res.headers(), res.body(), "HTTP " + res.status()));
+        }
+        String snippet = res.body().length() > 200 ? res.body().substring(0, 200) + "..." : res.body();
+        return new ApiException(ApiErrorInfo.of(res.status(), Collections.emptyMap(), res.headers(), res.body(),
+            "HTTP " + res.status() + " without a JSON error body" + (snippet.isEmpty() ? "" : ": " + snippet)));
+    }
+}
