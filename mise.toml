@@ -6,10 +6,11 @@ maven = "3.9.16"
 node = "24.20.0"
 
 [tasks.check]
-description = "Build (release 11, -Xlint:all -Werror), unit + conformance tests, javadoc and sources jars, examples, Central bundle dry run"
+description = "Build (release 11, -Xlint:all -Werror), unit + conformance tests, javadoc and sources jars, examples, README samples, Central bundle dry run"
 run = [
   "mvn -B -ntp install",
   "mvn -B -ntp -f examples/pom.xml compile",
+  "node scripts/readme-samples.mjs --lang java --classpath target/classes",
   "node scripts/publish.mjs --dry-run",
 ]
 
