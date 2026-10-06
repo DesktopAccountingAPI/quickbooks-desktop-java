@@ -1,0 +1,22 @@
+# Toolchain pins for development and CI. Install with `mise install`; run everything with `mise run check`.
+[tools]
+java = "temurin-21.0.12+8.0.LTS"
+maven = "3.9.16"
+# Node.js runs the conformance mock server and the release script.
+node = "24.20.0"
+
+[tasks.check]
+description = "Build (release 11, -Xlint:all -Werror), unit + conformance tests, javadoc and sources jars, examples, Central bundle dry run"
+run = [
+  "mvn -B -ntp install",
+  "mvn -B -ntp -f examples/pom.xml compile",
+  "node scripts/publish.mjs --dry-run",
+]
+
+[tasks.publish-dry-run]
+description = "Build the Maven Central bundle locally (signed when GPG_PRIVATE_KEY is set); uploads nothing"
+run = "node scripts/publish.mjs --dry-run"
+
+[tasks.publish]
+description = "Release to Maven Central (CI only; needs the release environment secrets)"
+run = "node scripts/publish.mjs --publish"

@@ -1,0 +1,7 @@
+* text=auto eol=lf
+*.jar binary
+src/main/java/com/desktopaccountingapi/quickbooksdesktop/models/** linguist-generated=true
+src/main/java/com/desktopaccountingapi/quickbooksdesktop/services/** linguist-generated=true
+src/main/java/com/desktopaccountingapi/quickbooksdesktop/DesktopAccountingApiClient.java linguist-generated=true
+conformance/fixtures/** linguist-generated=true
+api.md linguist-generated=true
