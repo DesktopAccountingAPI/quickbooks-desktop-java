@@ -4,6 +4,11 @@ import com.desktopaccountingapi.quickbooksdesktop.errors.DaapiException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.time.Duration;
+import java.util.Collections;
+import java.util.LinkedHashMap;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Set;
 
 /**
  * Resolved, validated client settings. Created by the client builder; immutable.
@@ -24,8 +29,19 @@ public final class ClientOptions {
     final Duration serverTimeout;
     final Transport transport;
     final RequestLogger logger;
+    final Duration totalTimeout;
+    final Map<String, String> defaultHeaders;
+
+    /** Headers the SDK manages; default headers never supply them. */
+    private static final Set<String> MANAGED_HEADERS = Set.of("authorization", "accept", "content-type", "user-agent", "daapi-end-user-id",
+        "conductor-end-user-id", "idempotency-key", "daapi-timeout-seconds", "prefer", "daapi-queue-ttl-seconds");
 
     ClientOptions(String apiKey, String baseUrl, String endUserId, Duration timeout, int maxRetries, Duration serverTimeout, Transport transport, RequestLogger logger) {
+        this(apiKey, baseUrl, endUserId, timeout, maxRetries, serverTimeout, transport, logger, null, Collections.emptyMap());
+    }
+
+    private ClientOptions(String apiKey, String baseUrl, String endUserId, Duration timeout, int maxRetries, Duration serverTimeout, Transport transport, RequestLogger logger,
+                          Duration totalTimeout, Map<String, String> defaultHeaders) {
         this.apiKey = apiKey;
         this.baseUrl = baseUrl;
         this.endUserId = endUserId;
@@ -34,6 +50,8 @@ public final class ClientOptions {
         this.serverTimeout = serverTimeout;
         this.transport = transport;
         this.logger = logger;
+        this.totalTimeout = totalTimeout;
+        this.defaultHeaders = defaultHeaders;
     }
 
     /**
@@ -60,6 +78,8 @@ public final class ClientOptions {
         String url = baseUrl != null ? baseUrl : System.getenv("DAAPI_BASE_URL");
         if (url == null || url.isEmpty()) url = DEFAULT_BASE_URL;
         url = url.replaceAll("/+$", "");
+        // The SDK appends /v1/...; accept a base URL that already ends in /v1 (Conductor's form).
+        if (url.endsWith("/v1")) url = url.substring(0, url.length() - 3);
         try {
             URI u = new URI(url);
             if (!"https".equalsIgnoreCase(u.getScheme()) && !"http".equalsIgnoreCase(u.getScheme()) || u.getHost() == null || u.getRawQuery() != null || u.getRawFragment() != null) {
@@ -89,7 +109,23 @@ public final class ClientOptions {
      * @return the copy
      */
     public ClientOptions withEndUserId(String endUserId) {
-        return new ClientOptions(apiKey, baseUrl, endUserId, timeout, maxRetries, serverTimeout, transport, logger);
+        return new ClientOptions(apiKey, baseUrl, endUserId, timeout, maxRetries, serverTimeout, transport, logger, totalTimeout, defaultHeaders);
+    }
+
+    /**
+     * Copy with a total timeout and default headers (the headers the SDK manages are dropped).
+     *
+     * @param totalTimeout time budget of a whole call, or null for none
+     * @param headers headers sent with every request
+     * @return the copy
+     */
+    public ClientOptions withExtras(Duration totalTimeout, Map<String, String> headers) {
+        Map<String, String> kept = new LinkedHashMap<>();
+        for (Map.Entry<String, String> h : headers.entrySet()) {
+            if (!MANAGED_HEADERS.contains(h.getKey().toLowerCase(Locale.ROOT))) kept.put(h.getKey(), h.getValue());
+        }
+        return new ClientOptions(apiKey, baseUrl, endUserId, timeout, maxRetries, serverTimeout, transport, logger, positive(totalTimeout, "totalTimeout"),
+            Collections.unmodifiableMap(kept));
     }
 
     /**
@@ -117,6 +153,24 @@ public final class ClientOptions {
      */
     public Duration timeout() {
         return timeout;
+    }
+
+    /**
+     * Time budget of a whole call.
+     *
+     * @return the duration, or null for none
+     */
+    public Duration totalTimeout() {
+        return totalTimeout;
+    }
+
+    /**
+     * Headers sent with every request.
+     *
+     * @return header names to values (unmodifiable)
+     */
+    public Map<String, String> defaultHeaders() {
+        return defaultHeaders;
     }
 
     /**
@@ -158,6 +212,7 @@ public final class ClientOptions {
     @Override
     public String toString() {
         // Never include the key.
-        return "ClientOptions{baseUrl=" + baseUrl + ", endUserId=" + endUserId + ", timeout=" + timeout + ", maxRetries=" + maxRetries + ", serverTimeout=" + serverTimeout + "}";
+        return "ClientOptions{baseUrl=" + baseUrl + ", endUserId=" + endUserId + ", timeout=" + timeout + ", totalTimeout=" + totalTimeout + ", maxRetries=" + maxRetries
+            + ", serverTimeout=" + serverTimeout + ", defaultHeaders=" + defaultHeaders.keySet() + "}";
     }
 }

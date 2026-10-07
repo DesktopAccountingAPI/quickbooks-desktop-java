@@ -24,8 +24,10 @@ public final class RequestOptions {
     private final Integer maxRetries;
     private final Duration serverTimeout;
     private final Duration queueTtl;
+    private final Duration totalTimeout;
 
     private RequestOptions(Builder b) {
+        this.totalTimeout = b.totalTimeout;
         this.endUserId = b.endUserId;
         this.idempotencyKey = b.idempotencyKey;
         this.timeout = b.timeout;
@@ -76,6 +78,7 @@ public final class RequestOptions {
         b.maxRetries = maxRetries;
         b.serverTimeout = serverTimeout;
         b.queueTtl = queueTtl;
+        b.totalTimeout = totalTimeout;
         return b;
     }
 
@@ -104,6 +107,15 @@ public final class RequestOptions {
      */
     public Duration timeout() {
         return timeout;
+    }
+
+    /**
+     * Total timeout override.
+     *
+     * @return the time budget of this call, or null to use the client setting
+     */
+    public Duration totalTimeout() {
+        return totalTimeout;
     }
 
     /**
@@ -141,6 +153,7 @@ public final class RequestOptions {
         private Integer maxRetries;
         private Duration serverTimeout;
         private Duration queueTtl;
+        private Duration totalTimeout;
 
         private Builder() {}
 
@@ -177,6 +190,17 @@ public final class RequestOptions {
          */
         public Builder timeout(Duration timeout) {
             this.timeout = ClientOptions.positive(timeout, "timeout");
+            return this;
+        }
+
+        /**
+         * Time budget of this call: every attempt, retry backoff and the wait for a pending request.
+         *
+         * @param totalTimeout positive duration
+         * @return this builder
+         */
+        public Builder totalTimeout(Duration totalTimeout) {
+            this.totalTimeout = ClientOptions.positive(totalTimeout, "totalTimeout");
             return this;
         }
 

@@ -27,10 +27,12 @@ import java.util.stream.StreamSupport;
  * }</pre>
  *
  * <p>Iterating ({@link #iterator()}, {@link #stream()}, {@link #pages()}, {@link #listAll()}) starts
- * from the first page each time. As soon as page N arrives, page N+1 is requested in the background
- * (one page of read-ahead), so the next continue request reaches the server inside the cursor's idle
- * window even while you process page N. Continue requests send only {@code cursor} (and
- * {@code limit} if you set one). A network error on a continue request retries the same cursor.
+ * from the first page each time. The next page is requested only when the iteration needs it, so a
+ * loop that stops early never sends an extra QuickBooks query. While you iterate items, a page held
+ * for more than 2 seconds makes the pager request the next page in the background, so slow consumers
+ * stay inside the cursor's idle window (about 10 seconds). {@link #listAll()} always reads one page
+ * ahead. Continue requests send only {@code cursor} (and {@code limit} if you set one). A network
+ * error on a continue request retries the same cursor.
  *
  * <p>If the cursor expires, iteration throws {@link CursorExpiredException} with
  * {@code itemsYielded}, {@code pagesServed}, {@code lastId} and {@code lastUpdatedAt}. The SDK never
@@ -39,6 +41,9 @@ import java.util.stream.StreamSupport;
  * @param <T> item type
  */
 public final class Pager<T> implements Iterable<T> {
+    /** How long the item iterator holds a page before it requests the next one in the background. Tests lower it. */
+    static volatile long readAheadAfterNanos = 2_000_000_000L;
+
     private final ClientCore core;
     private final OperationSpec op;
     private final String path;
@@ -84,7 +89,7 @@ public final class Pager<T> implements Iterable<T> {
     }
 
     /**
-     * Iterates page by page, with one page of read-ahead.
+     * Iterates page by page; each page is requested when you ask for it.
      *
      * @return the pages
      */
@@ -93,7 +98,8 @@ public final class Pager<T> implements Iterable<T> {
     }
 
     /**
-     * Iterates every item across all pages, with one page of read-ahead. {@code hasNext()} can throw
+     * Iterates every item across all pages. The next page is requested when the iteration reaches
+     * it, or in the background once a page has been held for 2 seconds. {@code hasNext()} can throw
      * the exception of a failed page request, including {@link CursorExpiredException}.
      *
      * @return an item iterator
@@ -113,14 +119,29 @@ public final class Pager<T> implements Iterable<T> {
     }
 
     /**
-     * Fetches every page as fast as possible and returns all items. Holds the whole list in memory.
+     * Fetches every page as fast as possible and returns all items: each next page is requested in
+     * the background as soon as a page arrives. Holds the whole list in memory.
      *
      * @return all items
      */
     public List<T> listAll() {
         List<T> out = new ArrayList<>();
-        for (T t : this) out.add(t);
-        return Collections.unmodifiableList(out);
+        int pages = 0;
+        Object lastRaw = null;
+        Page<T> page = fetch(null);
+        while (true) {
+            final String cursor = page.hasMore() ? page.nextCursor() : null;
+            CompletableFuture<Page<T>> pending = cursor == null ? null : CompletableFuture.supplyAsync(() -> fetch(cursor), ClientCore.readAhead());
+            out.addAll(page.data());
+            pages++;
+            if (!page.rawData().isEmpty()) lastRaw = page.rawData().get(page.rawData().size() - 1);
+            if (pending == null) return Collections.unmodifiableList(out);
+            try {
+                page = join(pending);
+            } catch (CursorExpiredException e) {
+                throw e.withProgress(out.size(), pages, member(lastRaw, "id"), member(lastRaw, "updatedAt"));
+            }
+        }
     }
 
     private static String member(Object raw, String key) {
@@ -129,81 +150,88 @@ public final class Pager<T> implements Iterable<T> {
         return v instanceof String ? (String) v : null;
     }
 
-    /** Page iterator with one page of read-ahead. */
+    private static <P> P join(CompletableFuture<P> f) {
+        try {
+            return f.join();
+        } catch (CompletionException e) {
+            Throwable c = e.getCause();
+            if (c instanceof RuntimeException) throw (RuntimeException) c;
+            if (c instanceof Error) throw (Error) c;
+            throw new DaapiException("page request failed", c);
+        }
+    }
+
+    /** Page iterator; each page is requested by {@code next()}. */
     private final class PageIterator implements Iterator<Page<T>> {
         private boolean started;
-        private CompletableFuture<Page<T>> pending;
+        private String cursor;
         private int pagesDelivered;
         private int itemsDelivered;
         private Object lastRaw;
 
         @Override
         public boolean hasNext() {
-            return !started || pending != null;
+            return !started || cursor != null;
         }
 
         @Override
         public Page<T> next() {
+            if (!hasNext()) throw new NoSuchElementException();
             Page<T> page;
             try {
-                if (!started) {
-                    started = true;
-                    page = fetch(null);
-                } else {
-                    if (pending == null) throw new NoSuchElementException();
-                    CompletableFuture<Page<T>> f = pending;
-                    pending = null;
-                    page = join(f);
-                }
+                page = fetch(started ? cursor : null);
             } catch (CursorExpiredException e) {
                 throw e.withProgress(itemsDelivered, pagesDelivered, member(lastRaw, "id"), member(lastRaw, "updatedAt"));
             }
-            if (page.hasMore() && page.nextCursor() != null) {
-                String cursor = page.nextCursor();
-                pending = CompletableFuture.supplyAsync(() -> fetch(cursor), ClientCore.readAhead());
-            }
+            started = true;
+            cursor = page.hasMore() ? page.nextCursor() : null;
             pagesDelivered++;
             itemsDelivered += page.data().size();
             if (!page.rawData().isEmpty()) lastRaw = page.rawData().get(page.rawData().size() - 1);
             return page;
         }
-
-        private Page<T> join(CompletableFuture<Page<T>> f) {
-            try {
-                return f.join();
-            } catch (CompletionException e) {
-                Throwable c = e.getCause();
-                if (c instanceof RuntimeException) throw (RuntimeException) c;
-                if (c instanceof Error) throw (Error) c;
-                throw new DaapiException("page request failed", c);
-            }
-        }
     }
 
-    /** Item iterator over {@link PageIterator}; tracks progress for {@link CursorExpiredException}. */
+    /**
+     * Item iterator. Requests the next page when the current one is used up, or in the background
+     * once a page has been held for {@link #readAheadAfterNanos}; tracks progress for
+     * {@link CursorExpiredException}.
+     */
     private final class ItemIterator implements Iterator<T> {
-        private final PageIterator pages = new PageIterator();
-        private Iterator<T> current = Collections.emptyIterator();
-        private List<Object> currentRaw = Collections.emptyList();
+        private boolean started;
+        private Page<T> page;
         private int index;
+        private long receivedNanos;
+        private String cursor;
+        private CompletableFuture<Page<T>> pending;
         private int yielded;
-        private int pagesStarted;
+        private int pages;
         private Object lastRaw;
 
         @Override
         public boolean hasNext() {
-            while (!current.hasNext()) {
-                if (!pages.hasNext()) return false;
+            while (page == null || index >= page.data().size()) {
+                if (started && cursor == null) return false;
                 Page<T> p;
                 try {
-                    p = pages.next();
+                    if (!started) {
+                        p = fetch(null);
+                    } else if (pending != null) {
+                        CompletableFuture<Page<T>> f = pending;
+                        pending = null;
+                        p = join(f);
+                    } else {
+                        p = fetch(cursor);
+                    }
                 } catch (CursorExpiredException e) {
-                    throw e.withProgress(yielded, pagesStarted, member(lastRaw, "id"), member(lastRaw, "updatedAt"));
+                    throw e.withProgress(yielded, pages, member(lastRaw, "id"), member(lastRaw, "updatedAt"));
                 }
-                pagesStarted++;
-                current = p.data().iterator();
-                currentRaw = p.rawData();
+                started = true;
+                page = p;
                 index = 0;
+                pages++;
+                receivedNanos = System.nanoTime();
+                cursor = p.hasMore() ? p.nextCursor() : null;
             }
             return true;
         }
@@ -211,8 +239,15 @@ public final class Pager<T> implements Iterable<T> {
         @Override
         public T next() {
             if (!hasNext()) throw new NoSuchElementException();
-            T t = current.next();
-            lastRaw = currentRaw.get(index++);
+            // Read-ahead for slow consumers: the caller asked for another item and has held this page
+            // long enough that waiting for its end could let the cursor's idle window lapse.
+            if (cursor != null && pending == null && System.nanoTime() - receivedNanos >= readAheadAfterNanos) {
+                final String c = cursor;
+                pending = CompletableFuture.supplyAsync(() -> fetch(c), ClientCore.readAhead());
+            }
+            T t = page.data().get(index);
+            lastRaw = page.rawData().get(index);
+            index++;
             yielded++;
             return t;
         }

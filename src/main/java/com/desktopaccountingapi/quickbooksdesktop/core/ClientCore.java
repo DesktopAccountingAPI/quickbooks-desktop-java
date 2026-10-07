@@ -241,7 +241,8 @@ public final class ClientCore {
             ro = ro.toBuilder().timeout(Duration.ofSeconds(waitSeconds + 10L)).build();
         }
         InputObject q = waitSeconds == null ? null : new WaitQuery(waitSeconds);
-        Transport.Response res = new Call(REQUESTS_RETRIEVE, ro).send("/v1/requests/" + pathParam("id", id), q, null, null, "application/json", false);
+        // A long poll is sized by its caller's deadline (waitSeconds); the total timeout does not cut it short.
+        Transport.Response res = new Call(REQUESTS_RETRIEVE, ro, waitSeconds == null).send("/v1/requests/" + pathParam("id", id), q, null, null, "application/json", false);
         Object raw = parseJson(REQUESTS_RETRIEVE, res.body());
         return interpret(id, raw, res);
     }
@@ -402,20 +403,30 @@ public final class ClientCore {
         final OperationSpec op;
         final RequestOptions o;
         final Duration attemptTimeout;
+        /** Deadline for waiting on a pending request: the total timeout if set, else the attempt timeout. */
         final long deadlineNanos;
+        /** {@link System#nanoTime()} after which no attempt or retry starts, or null without a total timeout. */
+        final Long totalDeadlineNanos;
         final int maxRetries;
         final String idempotencyKey;
         final String endUserId;
         final Duration serverTimeout;
 
         Call(OperationSpec op, RequestOptions o) {
+            this(op, o, true);
+        }
+
+        Call(OperationSpec op, RequestOptions o, boolean applyTotalTimeout) {
+            long started = System.nanoTime();
             this.op = op;
             this.o = o == null ? RequestOptions.NONE : o;
             Duration timeout = this.o.timeout() != null ? this.o.timeout() : options.timeout;
             this.serverTimeout = op.has(OperationSpec.SERVER_TIMEOUT) ? (this.o.serverTimeout() != null ? this.o.serverTimeout() : options.serverTimeout) : null;
             if (serverTimeout != null && serverTimeout.plusSeconds(10).compareTo(timeout) > 0) timeout = serverTimeout.plusSeconds(10);
             this.attemptTimeout = timeout;
-            this.deadlineNanos = System.nanoTime() + timeout.toNanos();
+            Duration total = applyTotalTimeout ? (this.o.totalTimeout() != null ? this.o.totalTimeout() : options.totalTimeout) : null;
+            this.totalDeadlineNanos = total == null ? null : started + total.toNanos();
+            this.deadlineNanos = started + (total != null ? total : timeout).toNanos();
             this.maxRetries = this.o.maxRetries() != null ? this.o.maxRetries() : options.maxRetries;
             if (op.has(OperationSpec.END_USER)) {
                 String eu = this.o.endUserId() != null ? this.o.endUserId() : options.endUserId;
@@ -432,7 +443,7 @@ public final class ClientCore {
         }
 
         Transport.Response send(String path, InputObject query, String body, String contentType, String accept, boolean async) {
-            Map<String, String> headers = new LinkedHashMap<>();
+            Map<String, String> headers = new LinkedHashMap<>(options.defaultHeaders);
             headers.put("Authorization", "Bearer " + options.apiKey);
             headers.put("Accept", accept);
             headers.put("User-Agent", SdkInfo.USER_AGENT);
@@ -445,8 +456,15 @@ public final class ClientCore {
             }
             if (body != null) headers.put("Content-Type", contentType + ("application/json".equals(contentType) ? "" : "; charset=utf-8"));
             URI uri = URI.create(options.baseUrl + path + queryString(query));
-            Transport.Request req = new Transport.Request(op.method(), uri, Collections.unmodifiableMap(headers), body, attemptTimeout);
+            Map<String, String> fixedHeaders = Collections.unmodifiableMap(headers);
             for (int attempt = 0; ; attempt++) {
+                Duration thisAttempt = attemptTimeout;
+                if (totalDeadlineNanos != null) {
+                    long remaining = totalDeadlineNanos - System.nanoTime();
+                    if (remaining <= 0) throw new ApiTimeoutException(op.operationId() + ": the call's total timeout ended before a response arrived", null);
+                    if (remaining < thisAttempt.toNanos()) thisAttempt = Duration.ofNanos(remaining);
+                }
+                Transport.Request req = new Transport.Request(op.method(), uri, fixedHeaders, body, thisAttempt);
                 long t0 = System.nanoTime();
                 Transport.Response res;
                 try {
@@ -454,10 +472,11 @@ public final class ClientCore {
                 } catch (IOException e) {
                     long ms = (System.nanoTime() - t0) / 1_000_000;
                     boolean timeout = e instanceof HttpTimeoutException;
-                    String what = timeout ? "timed out after " + attemptTimeout.toMillis() + " ms" : "failed: " + e.getClass().getSimpleName() + (e.getMessage() == null ? "" : " " + e.getMessage());
+                    String what = timeout ? "timed out after " + thisAttempt.toMillis() + " ms" : "failed: " + e.getClass().getSimpleName() + (e.getMessage() == null ? "" : " " + e.getMessage());
                     log(op.method() + " " + path + " " + what + " (attempt " + (attempt + 1) + ", " + ms + " ms)");
-                    if (attempt < maxRetries) {
-                        sleep(Retry.backoffMillis(attempt, JITTER), "after a network error");
+                    long backoff = Retry.backoffMillis(attempt, JITTER);
+                    if (attempt < maxRetries && retryFits(backoff)) {
+                        sleep(backoff, "after a network error");
                         continue;
                     }
                     String msg = op.operationId() + " " + what + (attempt > 0 ? " (" + (attempt + 1) + " attempts)" : "");
@@ -473,11 +492,17 @@ public final class ClientCore {
                 if (res.status() >= 200 && res.status() < 300) return res;
                 ApiException err = toException(res);
                 Long retryAfter = Retry.retryAfterMillis(res.headers().get("Retry-After"), Instant.now());
+                long delay = retryAfter != null ? retryAfter : Retry.backoffMillis(attempt, JITTER);
                 boolean retry = attempt < maxRetries && Retry.shouldRetry(res.status(), res.headers().get("Daapi-Should-Retry"), err.outcome())
-                    && (retryAfter == null || retryAfter <= Retry.MAX_RETRY_AFTER_MILLIS);
+                    && (retryAfter == null || retryAfter <= Retry.MAX_RETRY_AFTER_MILLIS) && retryFits(delay);
                 if (!retry) throw err;
-                sleep(retryAfter != null ? retryAfter : Retry.backoffMillis(attempt, JITTER), "after HTTP " + res.status());
+                sleep(delay, "after HTTP " + res.status());
             }
+        }
+
+        /** Whether a retry after {@code delayMillis} can still start before the total timeout ends. */
+        private boolean retryFits(long delayMillis) {
+            return totalDeadlineNanos == null || System.nanoTime() + delayMillis * 1_000_000L < totalDeadlineNanos;
         }
 
         private void sleep(long millis, String why) {

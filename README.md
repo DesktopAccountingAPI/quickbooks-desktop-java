@@ -12,7 +12,7 @@ The Java client for [Desktop Accounting API](https://www.desktopaccountingapi.co
 
 ## Install
 
-The artifact is `com.desktopaccountingapi:quickbooks-desktop` on [Maven Central](https://central.sonatype.com/artifact/com.desktopaccountingapi/quickbooks-desktop). The current version is **0.1.1**.
+The artifact is `com.desktopaccountingapi:quickbooks-desktop` on [Maven Central](https://central.sonatype.com/artifact/com.desktopaccountingapi/quickbooks-desktop). The current version is **0.2.0**.
 
 Maven:
 
@@ -20,20 +20,20 @@ Maven:
 <dependency>
   <groupId>com.desktopaccountingapi</groupId>
   <artifactId>quickbooks-desktop</artifactId>
-  <version>0.1.1</version>
+  <version>0.2.0</version>
 </dependency>
 ```
 
 Gradle (Kotlin DSL):
 
 ```kotlin skip
-implementation("com.desktopaccountingapi:quickbooks-desktop:0.1.1")
+implementation("com.desktopaccountingapi:quickbooks-desktop:0.2.0")
 ```
 
 Gradle (Groovy DSL):
 
 ```groovy skip
-implementation 'com.desktopaccountingapi:quickbooks-desktop:0.1.1'
+implementation 'com.desktopaccountingapi:quickbooks-desktop:0.2.0'
 ```
 
 ## Requirements
@@ -102,7 +102,7 @@ Without an end user, QuickBooks calls throw `DaapiException` before anything is 
 
 ### List records with auto-pagination
 
-Iterating a list walks every page. The SDK requests the next page in the background while you process the current one, so slow loop bodies stay inside the QuickBooks cursor's idle window.
+Iterating a list walks every page. The next page is requested only when the loop needs it, so a loop that stops early never runs an extra QuickBooks query. If you hold a page for more than 2 seconds, the SDK requests the next one in the background, so slow loop bodies stay inside the QuickBooks cursor's idle window.
 
 ```java
 for (Customer customer : client.qbd().customers().list(new CustomerListParams().limit(100).updatedAfter("2026-01-01"))) {
@@ -234,18 +234,20 @@ patient.qbd().invoices().retrieve("7-1700000000",
     RequestOptions.builder().endUserId("eu_01j9x4m6v4c8k2t7q0r5s3w1zb").maxRetries(0).build());
 ```
 
-`timeout` is the client's limit per HTTP attempt; `serverTimeout` is how long the API waits for QuickBooks. Reads and writes retry only when it is safe; see [Retries and idempotency](#retries-and-idempotency) and [Timeouts](#timeouts).
+`timeout` is the client's limit per HTTP attempt; `totalTimeout` caps a whole call including retries; `serverTimeout` is how long the API waits for QuickBooks. Reads and writes retry only when it is safe; see [Retries and idempotency](#retries-and-idempotency) and [Timeouts](#timeouts).
 
 ## Configuration
 
 | Builder method | Environment variable | Default | Meaning |
 | --- | --- | --- | --- |
 | `apiKey(String)` | `DAAPI_SECRET_KEY` | required | Secret key. Its format and checksum are checked locally before the first request; a missing or malformed key throws `DaapiException`. |
-| `baseUrl(String)` | `DAAPI_BASE_URL` | `https://api.desktopaccountingapi.com` | API base URL. May include a path; the SDK appends `/v1/...`. |
+| `baseUrl(String)` | `DAAPI_BASE_URL` | `https://api.desktopaccountingapi.com` | API base URL. May include a path; the SDK appends `/v1/...`. A trailing `/v1` is removed, so `https://api.desktopaccountingapi.com/v1` works too. |
 | `endUserId(String)` | | none | Default end user for QuickBooks Desktop operations. |
-| `timeout(Duration)` | | 100 s | Client-side timeout per HTTP attempt (server default 90 s plus 10 s). |
+| `timeout(Duration)` | | 100 s | Client-side timeout per HTTP attempt (server default 90 s plus 10 s); each retry gets a fresh one. |
+| `totalTimeout(Duration)` | | none | Time budget of a whole call: attempts, retry backoff and the wait for a pending request. |
 | `maxRetries(int)` | | 2 | Retries after network errors, 429 and retryable 5xx responses. |
 | `serverTimeout(Duration)` | | server default | How long the API waits for QuickBooks (`Daapi-Timeout-Seconds`, 1 to 300 s). |
+| `defaultHeader(String, String)` / `defaultHeaders(Map)` | | none | Headers sent with every request. The headers the SDK manages (`Authorization`, `Accept`, `Content-Type`, `User-Agent`, `Daapi-End-User-Id`, `Idempotency-Key`, `Daapi-Timeout-Seconds`, `Prefer`) are ignored here. |
 | `transport(Transport)` / `httpClient(HttpClient)` | | `JavaHttpTransport` | HTTP layer: proxies, custom TLS, instrumentation, test doubles. |
 | `logger(RequestLogger)` | | none | One line per attempt and retry. Never includes keys, headers or bodies. |
 
@@ -256,6 +258,7 @@ RequestOptions opts = RequestOptions.builder()
     .endUserId("eu_01j9x4m6v4c8k2t7q0r5s3w1zb")
     .idempotencyKey("order-8812-invoice")
     .timeout(Duration.ofSeconds(30))
+    .totalTimeout(Duration.ofMinutes(2))
     .maxRetries(0)
     .serverTimeout(Duration.ofSeconds(60))
     .build();
@@ -294,7 +297,7 @@ for (Page<Customer> page : customers.pages()) System.out.println(page.data().siz
 System.out.println(active + " of " + all.size());
 ```
 
-A network error on a continue request retries the same cursor, which returns the same page.
+The next page is requested only when the iteration reaches it, so `break`ing out of a loop never sends an extra QuickBooks query. While you iterate items, a page held for more than 2 seconds makes the SDK request the next page in the background, which keeps slow loops inside the cursor's idle window. `pages()` requests each page when you ask for it; `listAll()` always requests the next page as soon as a page arrives. A network error on a continue request retries the same cursor, which returns the same page.
 
 A QuickBooks cursor expires when no continue request arrives within its idle window, or when the QuickBooks session ends. Iteration then throws `CursorExpiredException` (a subclass of `InvalidRequestException`). The SDK never restarts a list on its own, because records may have changed. Restart with a watermark:
 
@@ -359,12 +362,13 @@ Include the `requestId()` when you contact support. See the [error handling guid
 
 ## Timeouts
 
-There are two timeouts:
+There are three timeouts:
 
-- `timeout` (client side, default 100 s) limits each HTTP attempt.
+- `timeout` (client side, default 100 s) limits each HTTP attempt. A retry starts a new attempt with a fresh timeout, so with retries a call can take longer.
+- `totalTimeout` (client side, no default) limits the whole call: every attempt, the waits between retries and the wait for a pending request. An attempt still running when it ends is cut off (`ApiTimeoutException`), and no retry starts that could not finish in time.
 - `serverTimeout` (`Daapi-Timeout-Seconds`) is how long the API waits for QuickBooks before it answers. When it is longer than `timeout`, each attempt waits `serverTimeout + 10 s`.
 
-When the API answers `504 QBD_REQUEST_TIMEOUT` (the request reached QuickBooks but has not finished), the SDK does not resubmit. It long-polls `GET /v1/requests/{id}?waitSeconds=...` until the call's time budget (`timeout`) is used, then returns the result, throws the request's typed error, or throws `RequestPendingException` with `requestId()`. The request keeps running; look it up later:
+When the API answers `504 QBD_REQUEST_TIMEOUT` (the request reached QuickBooks but has not finished), the SDK does not resubmit. It long-polls `GET /v1/requests/{id}?waitSeconds=...` until the call's time budget (`totalTimeout`, else `timeout`) is used, then returns the result, throws the request's typed error, or throws `RequestPendingException` with `requestId()`. The request keeps running; look it up later:
 
 ```java
 try {
@@ -419,13 +423,56 @@ String xml = client.endUsers().passthroughXml("eu_01j9x4m6v4c8k2t7q0r5s3w1zb",
 System.out.println(rs + " " + xml);
 ```
 
+## Porting from Conductor
+
+Conductor publishes no Java SDK, so Java code written against Conductor calls its REST API directly. This SDK sends the same paths, parameters and JSON field names; the table maps the Conductor pieces to the SDK.
+
+| Conductor (REST or `conductor-node`) | This SDK |
+| --- | --- |
+| `https://api.conductor.is/v1` base URL | `baseUrl(...)` (a trailing `/v1` is accepted) |
+| `Authorization: Bearer sk_conductor_...` | `apiKey(...)` or `DAAPI_SECRET_KEY` (`sk_test_...`, `sk_live_...`) |
+| `Conductor-End-User-Id` header, `conductorEndUserId` parameter | `endUserId(...)` on the builder, `client.forEndUser(...)` or `RequestOptions.endUser(...)` |
+| `Conductor-Timeout-Seconds` header | `serverTimeout(...)` |
+| `timeout`, `maxRetries` | `timeout(...)` (per attempt), `maxRetries(...)`; plus `totalTimeout(...)` for the whole call |
+| `defaultHeaders`, custom `fetch` | `defaultHeader(...)` / `defaultHeaders(...)`, `httpClient(...)` / `transport(...)` |
+| `logLevel` / `logger` | `logger(RequestLogger)` |
+| `nextCursor` loops | iterate the `Pager<T>`; the next page is requested only when needed |
+| Error body `error.code`, `type`, `userFacingMessage`, `httpStatusCode`, `integrationCode`, `requestId` | `ApiException.code()`, `type()`, `userFacingMessage()`, `httpStatusCode()`, `integrationCode()`, `requestId()`, plus `errorCause()`, `fixes()`, `docsUrl()`, `outcome()`, `retryable()` |
+| `NotFoundError`, `BadRequestError` and other status classes | the exception for the error `type`; check `ApiException.status()` when you need the HTTP status |
+
+```java
+// Before: java.net.http calls to https://api.conductor.is/v1 with Conductor-End-User-Id.
+DesktopAccountingApiClient conductor = DesktopAccountingApiClient.builder()
+    .baseUrl("https://api.desktopaccountingapi.com/v1")
+    .timeout(Duration.ofSeconds(120))
+    .maxRetries(2)
+    .defaultHeader("X-Trace-Id", "billing-sync")
+    .build();
+DesktopAccountingApiClient endUser = conductor.forEndUser("eu_01j9x4m6v4c8k2t7q0r5s3w1zb");
+try {
+    for (Invoice invoice : endUser.qbd().invoices().list(new InvoiceListParams().limit(50))) {
+        System.out.println(invoice.refNumber() + " " + invoice.subtotal());
+    }
+    endUser.qbd().invoices().retrieve("7-1700000000");
+} catch (ApiException e) {
+    if (e.status() != null && e.status() == 404) {
+        System.out.println("Not found: " + e.code() + " (request " + e.requestId() + ")");
+    } else {
+        showToEndUser(e.userFacingMessage() != null ? e.userFacingMessage() : e.getMessage());
+        System.out.println(e.type() + " " + e.code() + " " + e.httpStatusCode() + " " + e.integrationCode() + " " + e.requestId());
+    }
+}
+```
+
+What changes beyond names: every write carries an `Idempotency-Key`, only safe failures are retried (see [Retries and idempotency](#retries-and-idempotency)), and end-user IDs are ours (`eu_...`). The [migration guide](https://www.desktopaccountingapi.com/docs/get-started/migrating-from-conductor/) covers the API-level differences.
+
 ## Versioning and changelog
 
 - The SDK follows [semantic versioning](https://semver.org/). Only a major version removes or renames anything in the SDK's public API.
 - The Java, Node.js, Python and .NET SDKs and the [MCP server](https://github.com/DesktopAccountingAPI/quickbooks-desktop-mcp) are released together with the same version number, generated from the same API contract.
 - Every release is listed in [CHANGELOG.md](CHANGELOG.md) and tagged `v<version>` on GitHub.
 - The API is versioned in its path (`/v1`). Within `v1` the API only adds operations, fields, enum values and error codes, which do not break existing code.
-- `.daapi-sdk.json` records the contract's SHA-256 (`1cc3058cecb5...` for this release), and `SdkInfo.VERSION`, `SdkInfo.API_VERSION` and `SdkInfo.CONTRACT_SHA256` expose the same at runtime.
+- `.daapi-sdk.json` records the contract's SHA-256 (`6f5ac28d7c33...` for this release), and `SdkInfo.VERSION`, `SdkInfo.API_VERSION` and `SdkInfo.CONTRACT_SHA256` expose the same at runtime.
 
 ## Support
 
@@ -442,7 +489,7 @@ mise install
 mise run check   # build with -Xlint:all -Werror for Java 11, unit tests, conformance suite, javadoc, examples, README samples, Central bundle dry run
 ```
 
-To build from source, clone the repository and run `mvn -B install -DskipTests`; that puts `com.desktopaccountingapi:quickbooks-desktop:0.1.1` into your local Maven repository. Code under `src/main/java/com/desktopaccountingapi/quickbooksdesktop/{models,services}`, `DesktopAccountingApiClient.java` and this README are generated; `mise run check` compiles every Java sample in this README with `-Xlint:all -Werror` and runs the quickstart against the conformance mock server. See [CONTRIBUTING.md](CONTRIBUTING.md).
+To build from source, clone the repository and run `mvn -B install -DskipTests`; that puts `com.desktopaccountingapi:quickbooks-desktop:0.2.0` into your local Maven repository. Code under `src/main/java/com/desktopaccountingapi/quickbooksdesktop/{models,services}`, `DesktopAccountingApiClient.java` and this README are generated; `mise run check` compiles every Java sample in this README with `-Xlint:all -Werror` and runs the quickstart against the conformance mock server. See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## License
 
