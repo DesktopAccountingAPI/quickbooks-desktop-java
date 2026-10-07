@@ -122,6 +122,77 @@ class ClientTest {
         assertSame(c.options().transport(), c.forEndUser(EU).options().transport());
     }
 
+    static final String PAGE1 = "{\"objectType\":\"list\",\"data\":[{\"id\":\"1\"},{\"id\":\"2\"}],\"nextCursor\":\"c2\",\"hasMore\":true,\"remainingCount\":1}";
+    static final String PAGE2 = "{\"objectType\":\"list\",\"data\":[{\"id\":\"3\"}],\"nextCursor\":null,\"hasMore\":false}";
+
+    @Test
+    void pagerRequestsTheNextPageOnlyWhenNeeded() {
+        for (String stopAt : new String[] {"1", "2"}) {
+            Stub stub = new Stub(json(200, PAGE1));
+            for (var invoice : client(stub, EU).qbd().invoices().list(new InvoiceListParams().limit(2))) {
+                if (invoice.id().equals(stopAt)) break;
+            }
+            assertEquals(1, stub.requests.size(), "stopped at " + stopAt);
+        }
+        Stub pages = new Stub(json(200, PAGE1));
+        for (var page : client(pages, EU).qbd().invoices().list().pages()) {
+            assertEquals(2, page.data().size());
+            break;
+        }
+        assertEquals(1, pages.requests.size());
+        Stub all = new Stub(json(200, PAGE1), json(200, PAGE2));
+        List<String> ids = new ArrayList<>();
+        for (var invoice : client(all, EU).qbd().invoices().list(new InvoiceListParams().limit(2))) {
+            ids.add(invoice.id());
+            if (invoice.id().equals("2")) assertEquals(1, all.requests.size(), "a fast consumer gets no read-ahead");
+        }
+        assertEquals(Arrays.asList("1", "2", "3"), ids);
+        assertEquals("cursor=c2&limit=2", all.requests.get(1).uri().getQuery());
+        Stub eager = new Stub(json(200, PAGE1), json(200, PAGE2));
+        assertEquals(3, client(eager, EU).qbd().invoices().list().listAll().size());
+    }
+
+    @Test
+    void baseUrlEndingInV1IsNormalized() {
+        Stub stub = new Stub(json(200, "{\"status\":\"ok\",\"duration\":1}"));
+        DesktopAccountingApiClient c = DesktopAccountingApiClient.builder().apiKey(KEY).baseUrl("https://api.test/base/v1/").endUserId(EU).transport(stub).build();
+        c.qbd().healthCheck();
+        assertEquals("https://api.test/base/v1/quickbooks-desktop/health-check", stub.requests.get(0).uri().toString());
+    }
+
+    @Test
+    void defaultHeadersAreSentAndSdkHeadersWin() {
+        Stub stub = new Stub(json(200, CUSTOMER), json(200, CUSTOMER));
+        DesktopAccountingApiClient c = DesktopAccountingApiClient.builder().apiKey(KEY).baseUrl("https://api.test").endUserId(EU).transport(stub)
+            .defaultHeader("X-Team", "billing")
+            .defaultHeaders(java.util.Map.of("Authorization", "Bearer nope", "Daapi-End-User-Id", "eu_header"))
+            .build();
+        c.qbd().customers().retrieve("80000001-1700000000");
+        c.forEndUser("eu_other").qbd().customers().retrieve("80000001-1700000000");
+        Transport.Request r = stub.requests.get(0);
+        assertEquals("billing", r.headers().get("X-Team"));
+        assertEquals("Bearer " + KEY, r.headers().get("Authorization"));
+        assertEquals(EU, r.headers().get("Daapi-End-User-Id"));
+        assertEquals("billing", stub.requests.get(1).headers().get("X-Team"));
+    }
+
+    @Test
+    void totalTimeoutCapsAttemptsAndRetries() {
+        Stub stub = new Stub(json(200, CUSTOMER), json(200, CUSTOMER));
+        DesktopAccountingApiClient c = DesktopAccountingApiClient.builder().apiKey(KEY).baseUrl("https://api.test").endUserId(EU).transport(stub)
+            .totalTimeout(java.time.Duration.ofMillis(500)).build();
+        c.qbd().customers().retrieve("80000001-1700000000");
+        assertTrue(stub.requests.get(0).timeout().toMillis() <= 500, "attempt timeout cut to the total timeout");
+        c.qbd().customers().retrieve("80000001-1700000000", RequestOptions.builder().totalTimeout(java.time.Duration.ofMillis(200)).build());
+        assertTrue(stub.requests.get(1).timeout().toMillis() <= 200);
+        Stub busy = new Stub(json(503, error("INTEGRATION_CONNECTION_ERROR", "QBD_MODAL_DIALOG_OPEN", "not_applied"), "Daapi-Should-Retry", "true", "Retry-After", "2"),
+            json(200, CUSTOMER));
+        DesktopAccountingApiClient b = DesktopAccountingApiClient.builder().apiKey(KEY).baseUrl("https://api.test").endUserId(EU).transport(busy)
+            .totalTimeout(java.time.Duration.ofSeconds(1)).build();
+        assertThrows(IntegrationConnectionException.class, () -> b.qbd().customers().retrieve("80000001-1700000000"));
+        assertEquals(1, busy.requests.size(), "a retry after 2 s would end after the total timeout");
+    }
+
     @Test
     void platformOperationsNeverSendEndUser() {
         Stub stub = new Stub(json(200, "{\"objectType\":\"list\",\"url\":\"/v1/end-users\",\"data\":[],\"nextCursor\":null,\"hasMore\":false}"));

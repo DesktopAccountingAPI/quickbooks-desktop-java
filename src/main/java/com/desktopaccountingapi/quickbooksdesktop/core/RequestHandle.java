@@ -84,7 +84,7 @@ public final class RequestHandle<T> {
     }
 
     /**
-     * Waits for the result using the client's timeout as the budget.
+     * Waits for the result using the total timeout as the budget, else the client's timeout.
      *
      * @return the result
      * @throws RequestPendingException if the request has not finished in time (it keeps running)
@@ -92,6 +92,8 @@ public final class RequestHandle<T> {
      *     canceled, or its outcome is unknown
      */
     public T await() {
+        if (options.totalTimeout() != null) return await(options.totalTimeout());
+        if (core.options().totalTimeout() != null) return await(core.options().totalTimeout());
         return await(options.timeout() != null ? options.timeout() : core.options().timeout());
     }
 

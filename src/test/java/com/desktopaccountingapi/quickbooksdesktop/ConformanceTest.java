@@ -161,6 +161,8 @@ class ConformanceTest {
 
     private static void runScenario(Map<String, Object> fixtures, Map<String, Object> sc) throws Exception {
         String name = (String) sc.get("name");
+        // Scenarios limited to other SDKs (Conductor-named options that exist only there).
+        if (sc.get("only") != null && !list(sc.get("only")).contains("java")) return;
         control("POST", "/_control/reset/" + name);
         Map<String, Object> defaults = map(fixtures.get("defaultClient"));
         Map<String, Object> cc = map(sc.get("client"));
@@ -169,7 +171,9 @@ class ConformanceTest {
         try {
             DesktopAccountingApiClient.Builder b = DesktopAccountingApiClient.builder()
                 .apiKey((String) (cc.containsKey("apiKey") ? cc.get("apiKey") : fixtures.get("apiKey")))
-                .baseUrl(serverUrl + "/s/" + name);
+                .baseUrl(serverUrl + "/s/" + name + (cc.get("baseUrlSuffix") != null ? (String) cc.get("baseUrlSuffix") : ""));
+            for (Map.Entry<String, Object> h : map(cc.get("defaultHeaders")).entrySet()) b.defaultHeader(h.getKey(), (String) h.getValue());
+            if (cc.get("totalTimeoutMs") != null) b.totalTimeout(Duration.ofMillis(((BigDecimal) cc.get("totalTimeoutMs")).longValueExact()));
             Object endUser = cc.containsKey("endUserId") ? cc.get("endUserId") : defaults.get("endUserId");
             if (endUser != null) b.endUserId((String) endUser);
             Object retries = cc.containsKey("maxRetries") ? cc.get("maxRetries") : defaults.get("maxRetries");
@@ -244,9 +248,14 @@ class ConformanceTest {
             case "firstPage":
                 out.page = ((Pager<?>) result).firstPage();
                 break;
-            case "iterate":
-                for (Object item : (Pager<?>) result) out.items.add(item);
+            case "iterate": {
+                Object take = call.get("take");
+                for (Object item : (Pager<?>) result) {
+                    out.items.add(item);
+                    if (take != null && out.items.size() >= ((BigDecimal) take).intValueExact()) break;
+                }
                 break;
+            }
             case "enqueue": {
                 out.handle = (RequestHandle<?>) result;
                 long ms = ((BigDecimal) map(call.get("wait")).getOrDefault("timeoutMs", BigDecimal.valueOf(20000))).longValueExact();
