@@ -9,7 +9,7 @@
 
 ## 0.1.0
 
-First release, generated from API contract 1.0.0 (sha256 `6f5ac28d7c33`, 275 operations).
+First release, generated from API contract 1.0.0 (sha256 `b5774d24bc81`, 275 operations).
 
 - `DesktopAccountingApiClient` with builder, `fromEnv()` and `forEndUser(...)`; local secret-key validation.
 - Typed models for every request and response: `BigDecimal` money with preserved scale, `LocalDate`, `OffsetDateTime`, open enums as string constants, unknown fields kept in `additionalProperties()`, `toJson()` on every model.
