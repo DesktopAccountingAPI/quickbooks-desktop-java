@@ -2,11 +2,17 @@ package com.desktopaccountingapi.quickbooksdesktop.core;
 
 import java.io.IOException;
 import java.net.http.HttpClient;
+import java.net.http.HttpTimeoutException;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.Map;
+import java.util.concurrent.CancellationException;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 /**
  * Default {@link Transport} built on {@link java.net.http.HttpClient}. Uses HTTP/2 over TLS and
@@ -39,7 +45,27 @@ public final class JavaHttpTransport implements Transport {
             ? HttpRequest.BodyPublishers.noBody()
             : HttpRequest.BodyPublishers.ofString(request.body(), StandardCharsets.UTF_8);
         b.method(request.method(), body);
-        HttpResponse<String> res = client.send(b.build(), HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+        // HttpRequest.timeout covers only the wait for the response headers: a body that keeps
+        // trickling in could hold the calling thread past the attempt's budget. The whole exchange,
+        // body included, is bounded by waiting on the async send and canceling it at the timeout.
+        CompletableFuture<HttpResponse<String>> pending = client.sendAsync(b.build(), HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+        HttpResponse<String> res;
+        try {
+            res = pending.get(request.timeout().toNanos(), TimeUnit.NANOSECONDS);
+        } catch (TimeoutException e) {
+            pending.cancel(true);
+            throw new HttpTimeoutException("request timed out after " + request.timeout().toMillis() + " ms (headers and body)");
+        } catch (InterruptedException e) {
+            pending.cancel(true);
+            throw e;
+        } catch (CancellationException e) {
+            throw new IOException("request canceled", e);
+        } catch (ExecutionException e) {
+            Throwable cause = e.getCause();
+            if (cause instanceof IOException) throw (IOException) cause;
+            if (cause instanceof RuntimeException) throw (RuntimeException) cause;
+            throw new IOException(cause == null ? "request failed" : cause.toString(), cause);
+        }
         return new Response(res.statusCode(), Headers.of(res.headers().map()), res.body());
     }
 }

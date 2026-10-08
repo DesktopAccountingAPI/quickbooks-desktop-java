@@ -16,6 +16,7 @@ public final class ApiResponse<T> {
     private final T data;
     private final int statusCode;
     private final Headers headers;
+    private final String idempotencyKey;
 
     /**
      * Creates the response.
@@ -25,9 +26,31 @@ public final class ApiResponse<T> {
      * @param headers response headers
      */
     public ApiResponse(T data, int statusCode, Headers headers) {
+        this(data, statusCode, headers, null);
+    }
+
+    /**
+     * Creates the response of a write.
+     *
+     * @param data parsed result
+     * @param statusCode HTTP status
+     * @param headers response headers
+     * @param idempotencyKey the {@code Idempotency-Key} sent, or null
+     */
+    public ApiResponse(T data, int statusCode, Headers headers, String idempotencyKey) {
         this.data = data;
         this.statusCode = statusCode;
         this.headers = headers;
+        this.idempotencyKey = idempotencyKey;
+    }
+
+    /**
+     * The {@code Idempotency-Key} the SDK sent for a write (generated unless you set one).
+     *
+     * @return the key, or null for reads
+     */
+    public String idempotencyKey() {
+        return idempotencyKey;
     }
 
     /**

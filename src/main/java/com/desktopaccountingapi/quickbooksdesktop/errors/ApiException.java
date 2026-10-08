@@ -190,6 +190,17 @@ public class ApiException extends DaapiException {
     }
 
     /**
+     * Same as {@link #requestId()}, for code and tools that expect bean-style getters. Include it
+     * when you contact support. {@link #getMessage()} is the API message only; {@link #toString()}
+     * adds the status, code and request ID.
+     *
+     * @return the request ID, or null
+     */
+    public String getRequestId() {
+        return info.requestId;
+    }
+
+    /**
      * Why this error happens (the API's {@code cause} field).
      *
      * @return the explanation, or null
@@ -271,6 +282,13 @@ public class ApiException extends DaapiException {
         return info.rawBody;
     }
 
+    /**
+     * The exception with its status, error code and request ID, for loggers and uncaught-exception
+     * output: {@code ...IntegrationException: 404 QBD_OBJECT_NOT_FOUND The QuickBooks object does not
+     * exist. (req_...)}. {@link #getMessage()} stays the API message.
+     *
+     * @return the description
+     */
     @Override
     public String toString() {
         StringBuilder b = new StringBuilder(getClass().getName()).append(": ");

@@ -1,5 +1,6 @@
 package com.desktopaccountingapi.quickbooksdesktop.core;
 
+import com.desktopaccountingapi.quickbooksdesktop.errors.DaapiException;
 import com.desktopaccountingapi.quickbooksdesktop.errors.RequestPendingException;
 import com.desktopaccountingapi.quickbooksdesktop.models.Request;
 import java.time.Duration;
@@ -29,8 +30,9 @@ public final class RequestHandle<T> {
     private final RequestOptions options;
     private final boolean completed;
     private final T completedResult;
+    private final String idempotencyKey;
 
-    RequestHandle(ClientCore core, OperationSpec op, String id, Request request, Function<Object, T> parse, RequestOptions options) {
+    RequestHandle(ClientCore core, OperationSpec op, String id, Request request, Function<Object, T> parse, RequestOptions options, String idempotencyKey) {
         this.core = core;
         this.op = op;
         this.id = id;
@@ -39,6 +41,7 @@ public final class RequestHandle<T> {
         this.options = options;
         this.completed = false;
         this.completedResult = null;
+        this.idempotencyKey = idempotencyKey;
     }
 
     private RequestHandle(ClientCore core, OperationSpec op, String id, T result, RequestOptions options) {
@@ -50,6 +53,7 @@ public final class RequestHandle<T> {
         this.options = options;
         this.completed = true;
         this.completedResult = result;
+        this.idempotencyKey = null;
     }
 
     static <T> RequestHandle<T> completed(ClientCore core, OperationSpec op, String id, T result, RequestOptions options) {
@@ -63,6 +67,15 @@ public final class RequestHandle<T> {
      */
     public String id() {
         return id;
+    }
+
+    /**
+     * The {@code Idempotency-Key} sent with the write that created this request.
+     *
+     * @return the key, or null
+     */
+    public String idempotencyKey() {
+        return idempotencyKey;
     }
 
     /**
@@ -103,14 +116,20 @@ public final class RequestHandle<T> {
      *
      * @param timeout total time to wait
      * @return the result
-     * @throws RequestPendingException if the request has not finished in time (it keeps running)
+     * @throws RequestPendingException if the request has not finished in time or a poll failed (it keeps running)
      * @throws com.desktopaccountingapi.quickbooksdesktop.errors.ApiException if it failed, was
      *     canceled, or its outcome is unknown
      */
     public T await(Duration timeout) {
         if (completed) return completedResult;
-        ClientCore.Polled p = core.poll(id, System.nanoTime() + timeout.toNanos(), options);
-        return ClientCore.parseResult(op, p.result, parse);
+        try {
+            ClientCore.Polled p = core.poll(id, System.nanoTime() + timeout.toNanos(), options, null, idempotencyKey);
+            return ClientCore.parseResult(op, p.result, parse);
+        } catch (DaapiException e) {
+            // The request's own typed exceptions (failed, canceled, outcome_unknown) carry the key too.
+            e.attachIdempotencyKey(idempotencyKey);
+            throw e;
+        }
     }
 
     /**
@@ -123,9 +142,14 @@ public final class RequestHandle<T> {
      */
     public T result() {
         if (completed) return completedResult;
-        ClientCore.Polled p = core.readRequest(id, null, options);
-        if (!p.done) throw new RequestPendingException(id, ClientCore.parseRequest(p.raw));
-        return ClientCore.parseResult(op, p.result, parse);
+        try {
+            ClientCore.Polled p = core.readRequest(id, null, options);
+            if (!p.done) throw new RequestPendingException(id, ClientCore.parseRequest(p.raw), null, null, idempotencyKey);
+            return ClientCore.parseResult(op, p.result, parse);
+        } catch (DaapiException e) {
+            e.attachIdempotencyKey(idempotencyKey);
+            throw e;
+        }
     }
 
     @Override
