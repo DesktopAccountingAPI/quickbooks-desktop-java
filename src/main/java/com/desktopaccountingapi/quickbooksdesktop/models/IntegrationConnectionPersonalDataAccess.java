@@ -3,16 +3,19 @@
 package com.desktopaccountingapi.quickbooksdesktop.models;
 
 /**
- * Constants for {@code ResponsePaymentStatus} values.
+ * Constants for {@code IntegrationConnectionPersonalDataAccess} values.
  *
  * <p>Known values of an open set. The API may return values not listed here; treat unknown values as valid.
  */
-public final class ResponsePaymentStatus {
-    private ResponsePaymentStatus() {}
+public final class IntegrationConnectionPersonalDataAccess {
+    private IntegrationConnectionPersonalDataAccess() {}
+
+    /** {@code allowed} */
+    public static final String ALLOWED = "allowed";
+
+    /** {@code denied} */
+    public static final String DENIED = "denied";
 
     /** {@code unknown} */
     public static final String UNKNOWN = "unknown";
-
-    /** {@code completed} */
-    public static final String COMPLETED = "completed";
 }
