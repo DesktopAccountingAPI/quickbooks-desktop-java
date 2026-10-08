@@ -12,7 +12,7 @@ The Java client for [Desktop Accounting API](https://www.desktopaccountingapi.co
 
 ## Install
 
-The artifact is `com.desktopaccountingapi:quickbooks-desktop` on [Maven Central](https://central.sonatype.com/artifact/com.desktopaccountingapi/quickbooks-desktop). The current version is **0.2.1**.
+The artifact is `com.desktopaccountingapi:quickbooks-desktop` on [Maven Central](https://central.sonatype.com/artifact/com.desktopaccountingapi/quickbooks-desktop). The current version is **0.3.0**.
 
 Maven:
 
@@ -20,20 +20,20 @@ Maven:
 <dependency>
   <groupId>com.desktopaccountingapi</groupId>
   <artifactId>quickbooks-desktop</artifactId>
-  <version>0.2.1</version>
+  <version>0.3.0</version>
 </dependency>
 ```
 
 Gradle (Kotlin DSL):
 
 ```kotlin skip
-implementation("com.desktopaccountingapi:quickbooks-desktop:0.2.1")
+implementation("com.desktopaccountingapi:quickbooks-desktop:0.3.0")
 ```
 
 Gradle (Groovy DSL):
 
 ```groovy skip
-implementation 'com.desktopaccountingapi:quickbooks-desktop:0.2.1'
+implementation 'com.desktopaccountingapi:quickbooks-desktop:0.3.0'
 ```
 
 ## Requirements
@@ -57,7 +57,7 @@ A secret key can read and write every connected company file in its project. Kee
 
 ## Quickstart
 
-Each of your customers is an **end user** (`eu_...`) with one QuickBooks Desktop company file, connected through the Web Connector. Copy an end user ID from the dashboard's **End users** page, then:
+Each of your customers is an **end user** (`eu_...`) with one QuickBooks Desktop company file, connected through the Web Connector. Copy an end user ID from the dashboard's **End users** page and set it as `DAAPI_END_USER_ID` (`export DAAPI_END_USER_ID="eu_..."`), then:
 
 ```java run=quickstart harness=none
 import com.desktopaccountingapi.quickbooksdesktop.DesktopAccountingApiClient;
@@ -68,13 +68,16 @@ import com.desktopaccountingapi.quickbooksdesktop.models.InvoiceListParams;
 public class Quickstart {
     public static void main(String[] args) {
         // Reads DAAPI_SECRET_KEY. forEndUser sends Daapi-End-User-Id on every QuickBooks call.
-        DesktopAccountingApiClient client = DesktopAccountingApiClient.fromEnv().forEndUser("eu_01j9x4m6v4c8k2t7q0r5s3w1zb");
+        DesktopAccountingApiClient client = DesktopAccountingApiClient.fromEnv().forEndUser(System.getenv("DAAPI_END_USER_ID"));
 
         HealthCheck health = client.qbd().healthCheck();
         System.out.println("QuickBooks connection: " + health.status());
 
+        // The loop fetches further pages as needed (10 invoices per request); stop after the first 10.
+        int shown = 0;
         for (Invoice invoice : client.qbd().invoices().list(new InvoiceListParams().limit(10))) {
             System.out.println(invoice.refNumber() + " " + invoice.subtotal()); // subtotal is a BigDecimal, for example 105.50
+            if (++shown == 10) break;
         }
     }
 }
@@ -158,7 +161,7 @@ A stale revision is a `409` `INTEGRATION_ERROR` with code `QBD_REVISION_NUMBER_S
     "type": "INTEGRATION_ERROR",
     "code": "QBD_REVISION_NUMBER_STALE",
     "message": "The object changed since you read it; revisionNumber is out of date.",
-    "userFacingMessage": "This record was changed by someone else. Reload it and try again.",
+    "userFacingMessage": "This record changed in QuickBooks Desktop after it was loaded. Reload it and try again.",
     "httpStatusCode": 409,
     "integrationCode": "3200",
     "requestId": "req_01j9x4m6v4c8k2t7q0r5s3w1zd",
@@ -299,16 +302,24 @@ System.out.println(active + " of " + all.size());
 
 The next page is requested only when the iteration reaches it, so `break`ing out of a loop never sends an extra QuickBooks query. While you iterate items, a page held for more than 2 seconds makes the SDK request the next page in the background, which keeps slow loops inside the cursor's idle window. `pages()` requests each page when you ask for it; `listAll()` always requests the next page as soon as a page arrives. A network error on a continue request retries the same cursor, which returns the same page.
 
-A QuickBooks cursor expires when no continue request arrives within its idle window, or when the QuickBooks session ends. Iteration then throws `CursorExpiredException` (a subclass of `InvalidRequestException`). The SDK never restarts a list on its own, because records may have changed. Restart with a watermark:
+A QuickBooks cursor expires when no continue request arrives within its idle window, or when the QuickBooks session ends. Iteration then throws `CursorExpiredException` (a subclass of `InvalidRequestException`). The SDK never restarts a list on its own, because records may have changed. Restart the same query and skip what you already have. Do not resume from the last record's `updatedAt`: QuickBooks returns records in its own order, not by `updatedAt`, so records you have not read yet can be older than the last one you read. An incremental sync restarts from the `updatedAfter` watermark it saved before the traversal ([pagination guide](https://www.desktopaccountingapi.com/docs/guides/pagination/#recovering-from-cursor_expired)).
 
 ```java
-CustomerListParams params = new CustomerListParams().limit(100);
+import java.util.HashSet;
+import java.util.Set;
+
+Set<String> seen = new HashSet<>();
 try {
-    for (Customer c : client.qbd().customers().list(params)) process(c);
+    for (Customer c : client.qbd().customers().list(new CustomerListParams().limit(100))) {
+        process(c);
+        seen.add(c.id());
+    }
 } catch (CursorExpiredException e) {
-    System.out.println(e.itemsYielded() + " items, " + e.pagesServed() + " pages, last " + e.lastId() + ", reason " + e.reason());
-    // Continue with records changed since the last one processed; skip IDs you already have.
-    for (Customer c : client.qbd().customers().list(new CustomerListParams().limit(100).updatedAfter(e.lastUpdatedAt()))) process(c);
+    System.out.println(e.itemsYielded() + " items, " + e.pagesServed() + " pages, last " + e.lastId() + ", reason " + e.reason() + " (" + e.requestId() + ")");
+    // Restart the same query and skip the IDs you already have.
+    for (Customer c : client.qbd().customers().list(new CustomerListParams().limit(100))) {
+        if (seen.add(c.id())) process(c);
+    }
 }
 ```
 
@@ -336,7 +347,7 @@ Every exception extends `DaapiException` (unchecked).
 | `RequestPendingException` | The call's time budget ran out while the request was still queued or running |
 | `WebhookVerificationException` | Webhook signature or timestamp check failed |
 
-Exceptions are in `com.desktopaccountingapi.quickbooksdesktop.errors`. `ApiException` exposes every field of the error body: `status()`, `type()`, `code()`, `getMessage()`, `userFacingMessage()`, `httpStatusCode()`, `integrationCode()`, `requestId()` (falls back to the `Daapi-Request-Id` header), `errorCause()` (the API's `cause`; `getCause()` is the Java exception chain), `fixes()` (`actor()`, `action()`), `docsUrl()`, `retryable()`, `outcome()`, `param()`, `details()` and `headers()`. Codes are constants in `models.ErrorCode`, types in `models.ErrorType`:
+Exceptions are in `com.desktopaccountingapi.quickbooksdesktop.errors`. `ApiException` exposes every field of the error body: `status()`, `type()`, `code()`, `getMessage()`, `userFacingMessage()`, `httpStatusCode()`, `integrationCode()`, `requestId()` (falls back to the `Daapi-Request-Id` header; `getRequestId()` is the same value), `errorCause()` (the API's `cause`; `getCause()` is the Java exception chain), `fixes()` (`actor()`, `action()`), `docsUrl()`, `retryable()`, `outcome()`, `param()`, `details()` and `headers()`. Codes are constants in `models.ErrorCode`, types in `models.ErrorType`:
 
 ```java
 try {
@@ -350,6 +361,8 @@ try {
     showToEndUser(e.userFacingMessage());
 }
 ```
+
+`getMessage()` is the API's message only. `toString()`, which loggers and uncaught-exception output use, adds the HTTP status, the code and the request ID, for example `com.desktopaccountingapi.quickbooksdesktop.errors.IntegrationException: 404 QBD_OBJECT_NOT_FOUND The QuickBooks object does not exist. (req_01j9x4m6v4c8k2t7q0r5s3w1zd)`. Log the exception itself (`logger.error("call failed", e)` or `e.toString()`), not only `getMessage()`, so the request ID is kept.
 
 Include the `requestId()` when you contact support. See the [error handling guide](https://www.desktopaccountingapi.com/docs/guides/error-handling/).
 
@@ -368,7 +381,7 @@ There are three timeouts:
 - `totalTimeout` (client side, no default) limits the whole call: every attempt, the waits between retries and the wait for a pending request. An attempt still running when it ends is cut off (`ApiTimeoutException`), and no retry starts that could not finish in time.
 - `serverTimeout` (`Daapi-Timeout-Seconds`) is how long the API waits for QuickBooks before it answers. When it is longer than `timeout`, each attempt waits `serverTimeout + 10 s`.
 
-When the API answers `504 QBD_REQUEST_TIMEOUT` (the request reached QuickBooks but has not finished), the SDK does not resubmit. It long-polls `GET /v1/requests/{id}?waitSeconds=...` until the call's time budget (`totalTimeout`, else `timeout`) is used, then returns the result, throws the request's typed error, or throws `RequestPendingException` with `requestId()`. The request keeps running; look it up later:
+When the API answers `504 QBD_REQUEST_TIMEOUT` (the request reached QuickBooks but has not finished), the SDK does not resubmit. It long-polls `GET /v1/requests/{id}?waitSeconds=...` until the call's time budget (`totalTimeout`, else `timeout`) is used, then returns the result, throws the request's typed error, or throws `RequestPendingException` with `requestId()`. It also throws `RequestPendingException`, never the poll's own exception, when a poll fails (`429`, `5xx`, `404`, network): that failure says nothing about the write. `timeoutError()` is the original 504 and `idempotencyKey()` the key the write was sent with; resend only with that key. The request keeps running; look it up later:
 
 ```java
 try {
@@ -472,7 +485,7 @@ What changes beyond names: every write carries an `Idempotency-Key`, only safe f
 - The Java, Node.js, Python and .NET SDKs and the [MCP server](https://github.com/DesktopAccountingAPI/quickbooks-desktop-mcp) are released together with the same version number, generated from the same API contract.
 - Every release is listed in [CHANGELOG.md](CHANGELOG.md) and tagged `v<version>` on GitHub.
 - The API is versioned in its path (`/v1`). Within `v1` the API only adds operations, fields, enum values and error codes, which do not break existing code.
-- `.daapi-sdk.json` records the contract's SHA-256 (`b5774d24bc81...` for this release), and `SdkInfo.VERSION`, `SdkInfo.API_VERSION` and `SdkInfo.CONTRACT_SHA256` expose the same at runtime.
+- `.daapi-sdk.json` records the contract's SHA-256 (`79b06eb20083...` for this release), and `SdkInfo.VERSION`, `SdkInfo.API_VERSION` and `SdkInfo.CONTRACT_SHA256` expose the same at runtime.
 
 ## Support
 
@@ -489,7 +502,7 @@ mise install
 mise run check   # build with -Xlint:all -Werror for Java 11, unit tests, conformance suite, javadoc, examples, README samples, Central bundle dry run
 ```
 
-To build from source, clone the repository and run `mvn -B install -DskipTests`; that puts `com.desktopaccountingapi:quickbooks-desktop:0.2.1` into your local Maven repository. Code under `src/main/java/com/desktopaccountingapi/quickbooksdesktop/{models,services}`, `DesktopAccountingApiClient.java` and this README are generated; `mise run check` compiles every Java sample in this README with `-Xlint:all -Werror` and runs the quickstart against the conformance mock server. See [CONTRIBUTING.md](CONTRIBUTING.md).
+To build from source, clone the repository and run `mvn -B install -DskipTests`; that puts `com.desktopaccountingapi:quickbooks-desktop:0.3.0` into your local Maven repository. Code under `src/main/java/com/desktopaccountingapi/quickbooksdesktop/{models,services}`, `DesktopAccountingApiClient.java` and this README are generated; `mise run check` compiles every Java sample in this README with `-Xlint:all -Werror` and runs the quickstart against the conformance mock server. See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## License
 

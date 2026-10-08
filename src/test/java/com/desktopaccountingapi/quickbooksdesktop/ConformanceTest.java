@@ -442,7 +442,16 @@ class ConformanceTest {
             actual.put("lastId", c.lastId());
             actual.put("lastUpdatedAt", c.lastUpdatedAt());
         }
-        if (t instanceof RequestPendingException) actual.put("requestId", ((RequestPendingException) t).requestId());
+        if (t instanceof RequestPendingException) {
+            RequestPendingException p = (RequestPendingException) t;
+            actual.put("requestId", p.requestId());
+            actual.put("timeoutErrorCode", p.timeoutError() == null ? null : p.timeoutError().code());
+        }
+        if (t instanceof DaapiException) {
+            String key = ((DaapiException) t).idempotencyKey();
+            boolean uuid = key != null && key.matches("[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}");
+            actual.put("idempotencyKey", "$uuid".equals(err.get("idempotencyKey")) && uuid ? "$uuid" : key);
+        }
         for (Map.Entry<String, Object> e : err.entrySet()) {
             String k = e.getKey();
             if ("class".equals(k)) continue;

@@ -241,6 +241,10 @@ class ClientTest {
         assertEquals("not_applied", e.outcome());
         assertEquals(BigDecimal.ONE, e.details().get("k"));
         assertEquals("false", e.headers().get("daapi-should-retry"));
+        // F7-D18: getMessage() stays the API message; toString() (loggers, uncaught output) adds
+        // status, code and request ID, as .NET does.
+        assertEquals("req_1", e.getRequestId());
+        assertEquals(IntegrationConnectionException.class.getName() + ": 503 QBD_MODAL_DIALOG_OPEN m (req_1)", e.toString());
     }
 
     @Test

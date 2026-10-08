@@ -118,17 +118,23 @@ public final class ClientCore {
         Call c = new Call(op, o);
         String json = body == null ? null : validated(body).toJson();
         if (query != null) query.validate();
-        Transport.Response res;
         try {
-            res = c.send(path, query, json, "application/json", "application/json", false);
-        } catch (ApiException e) {
-            String pending = pendingRequestId(e);
-            if (pending == null) throw e;
-            log("request " + pending + " still running after a server timeout; polling until the call deadline");
-            Polled polled = poll(pending, c.deadlineNanos, c.o);
-            return new ApiResponse<>(parseResult(op, polled.result, parse), polled.status, polled.headers);
+            Transport.Response res;
+            try {
+                res = c.send(path, query, json, "application/json", "application/json", false);
+            } catch (ApiException e) {
+                String pending = pendingRequestId(e);
+                if (pending == null) throw e;
+                log("request " + pending + " still running after a server timeout; polling until the call deadline");
+                Polled polled = poll(pending, c.deadlineNanos, c.o, e, c.idempotencyKey);
+                return new ApiResponse<>(parseResult(op, polled.result, parse), polled.status, polled.headers, c.idempotencyKey);
+            }
+            return new ApiResponse<>(parseResult(op, parseJson(op, res.body()), parse), res.status(), res.headers(), c.idempotencyKey);
+        } catch (DaapiException e) {
+            // Every exception of a write carries the key it was sent with.
+            e.attachIdempotencyKey(c.idempotencyKey);
+            throw e;
         }
-        return new ApiResponse<>(parseResult(op, parseJson(op, res.body()), parse), res.status(), res.headers());
     }
 
     /**
@@ -144,12 +150,17 @@ public final class ClientCore {
         if (xml == null) throw new DaapiException("xml is required");
         Call c = new Call(op, o);
         try {
-            return c.send(path, null, xml, "application/xml", "application/xml", false).body();
-        } catch (ApiException e) {
-            String pending = pendingRequestId(e);
-            if (pending == null) throw e;
-            Object result = poll(pending, c.deadlineNanos, c.o).result;
-            return result instanceof String ? (String) result : Json.write(result);
+            try {
+                return c.send(path, null, xml, "application/xml", "application/xml", false).body();
+            } catch (ApiException e) {
+                String pending = pendingRequestId(e);
+                if (pending == null) throw e;
+                Object result = poll(pending, c.deadlineNanos, c.o, e, c.idempotencyKey).result;
+                return result instanceof String ? (String) result : Json.write(result);
+            }
+        } catch (DaapiException e) {
+            e.attachIdempotencyKey(c.idempotencyKey);
+            throw e;
         }
     }
 
@@ -170,11 +181,18 @@ public final class ClientCore {
         Call c = new Call(op, o);
         String json = body == null ? null : validated(body).toJson();
         if (query != null) query.validate();
-        Transport.Response res = c.send(path, query, json, "application/json", "application/json", true);
-        Object parsed = parseJson(op, res.body());
+        Transport.Response res;
+        Object parsed;
+        try {
+            res = c.send(path, query, json, "application/json", "application/json", true);
+            parsed = parseJson(op, res.body());
+        } catch (DaapiException e) {
+            e.attachIdempotencyKey(c.idempotencyKey);
+            throw e;
+        }
         if (res.status() == 202) {
             Request request = parseRequest(parsed);
-            return new RequestHandle<>(this, op, request.id(), request, parse, c.o);
+            return new RequestHandle<>(this, op, request.id(), request, parse, c.o, c.idempotencyKey);
         }
         // The API answered with the final result right away.
         return RequestHandle.completed(this, op, res.headers().get("Daapi-Request-Id"), parseResult(op, parsed, parse), c.o);
@@ -235,16 +253,23 @@ public final class ClientCore {
      * @throws ApiException when the request ended in failure
      */
     Polled readRequest(String id, Integer waitSeconds, RequestOptions o) {
+        Transport.Response res = fetchRequest(id, waitSeconds, o, null);
+        Object raw = parseJson(REQUESTS_RETRIEVE, res.body());
+        return interpret(id, raw, res);
+    }
+
+    /**
+     * One {@code GET /v1/requests/{id}}. A long poll with {@code deadlineNanos} keeps every
+     * attempt, retry and backoff inside the caller's deadline (codex review #15).
+     */
+    private Transport.Response fetchRequest(String id, Integer waitSeconds, RequestOptions o, Long deadlineNanos) {
         RequestOptions ro = o == null ? RequestOptions.NONE : o;
         if (waitSeconds != null) {
             // Each long-poll attempt may take up to waitSeconds; give it 10 s on top.
             ro = ro.toBuilder().timeout(Duration.ofSeconds(waitSeconds + 10L)).build();
         }
         InputObject q = waitSeconds == null ? null : new WaitQuery(waitSeconds);
-        // A long poll is sized by its caller's deadline (waitSeconds); the total timeout does not cut it short.
-        Transport.Response res = new Call(REQUESTS_RETRIEVE, ro, waitSeconds == null).send("/v1/requests/" + pathParam("id", id), q, null, null, "application/json", false);
-        Object raw = parseJson(REQUESTS_RETRIEVE, res.body());
-        return interpret(id, raw, res);
+        return new Call(REQUESTS_RETRIEVE, ro, waitSeconds == null, deadlineNanos).send("/v1/requests/" + pathParam("id", id), q, null, null, "application/json", false);
     }
 
     /**
@@ -264,6 +289,9 @@ public final class ClientCore {
         String status = m.get("status") instanceof String ? (String) m.get("status") : "";
         switch (status) {
             case "succeeded":
+                // QuickBooks answered, but the API could not map the answer (for example
+                // QBD_RESPONSE_UNREADABLE, outcome applied): throw that catalog error (codex review #4).
+                if (m.get("error") instanceof Map) throw errorFromRequest(id, status, m.get("error"));
                 if (Boolean.TRUE.equals(m.get("resultExpired"))) {
                     throw new DaapiException("Request " + id + " succeeded, but its result is no longer stored (resultExpired).");
                 }
@@ -278,22 +306,40 @@ public final class ClientCore {
     }
 
     /**
-     * Long-polls a request until it finishes or the deadline passes.
+     * Long-polls a request until it finishes or the deadline passes. A finished request returns its
+     * result or throws its own typed exception. Anything else that ends the wait (the deadline, or a
+     * poll that failed: 429, 5xx, 404, network, timeout) throws {@link RequestPendingException}: the
+     * failed poll's own retryable exception would invite a duplicate write (Fable review F-1).
      *
      * @param id request ID
      * @param deadlineNanos {@link System#nanoTime()} deadline
      * @param o per-call options
+     * @param timeoutError the 504 that started the wait, or null
+     * @param idempotencyKey the write's key, or null
      * @return the finished request
      */
-    Polled poll(String id, long deadlineNanos, RequestOptions o) {
+    Polled poll(String id, long deadlineNanos, RequestOptions o, ApiException timeoutError, String idempotencyKey) {
         Request last = null;
         while (true) {
             long remaining = deadlineNanos - System.nanoTime();
-            if (remaining <= 0) throw new RequestPendingException(id, last);
+            if (remaining <= 0) throw new RequestPendingException(id, last, timeoutError, null, idempotencyKey);
             int wait = (int) Math.min(60, Math.max(1, (remaining + 999_999_999L) / 1_000_000_000L));
-            Polled p = readRequest(id, wait, o);
+            Transport.Response res;
+            Object raw;
+            Request current;
+            try {
+                res = fetchRequest(id, wait, o, deadlineNanos);
+                raw = parseJson(REQUESTS_RETRIEVE, res.body());
+                current = parseRequest(raw);
+            } catch (DaapiException e) {
+                throw new RequestPendingException(id, last, timeoutError, e, idempotencyKey);
+            }
+            // The default transport stops its timer before reading the body, so a slow body can end
+            // after the deadline: a late answer is not returned, settled or not (codex re-review #15).
+            if (System.nanoTime() - deadlineNanos > 0) throw new RequestPendingException(id, current, timeoutError, null, idempotencyKey);
+            Polled p = interpret(id, raw, res);
             if (p.done) return p;
-            last = parseRequest(p.raw);
+            last = current;
         }
     }
 
@@ -417,6 +463,11 @@ public final class ClientCore {
         }
 
         Call(OperationSpec op, RequestOptions o, boolean applyTotalTimeout) {
+            this(op, o, applyTotalTimeout, null);
+        }
+
+        /** {@code deadlineOverride}: a {@link System#nanoTime()} after which no attempt or retry starts, replacing the total timeout. */
+        Call(OperationSpec op, RequestOptions o, boolean applyTotalTimeout, Long deadlineOverride) {
             long started = System.nanoTime();
             this.op = op;
             this.o = o == null ? RequestOptions.NONE : o;
@@ -425,7 +476,7 @@ public final class ClientCore {
             if (serverTimeout != null && serverTimeout.plusSeconds(10).compareTo(timeout) > 0) timeout = serverTimeout.plusSeconds(10);
             this.attemptTimeout = timeout;
             Duration total = applyTotalTimeout ? (this.o.totalTimeout() != null ? this.o.totalTimeout() : options.totalTimeout) : null;
-            this.totalDeadlineNanos = total == null ? null : started + total.toNanos();
+            this.totalDeadlineNanos = deadlineOverride != null ? deadlineOverride : total == null ? null : started + total.toNanos();
             this.deadlineNanos = started + (total != null ? total : timeout).toNanos();
             this.maxRetries = this.o.maxRetries() != null ? this.o.maxRetries() : options.maxRetries;
             if (op.has(OperationSpec.END_USER)) {
