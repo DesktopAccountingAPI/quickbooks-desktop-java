@@ -2,7 +2,7 @@
 
 # API reference (Java)
 
-Every resource method of `DesktopAccountingApiClient`, generated from the API contract (OpenAPI 3.1.0, API version 1.0.0, sha256 `09aa9517f466`). Models are in `com.desktopaccountingapi.quickbooksdesktop.models`; services in `com.desktopaccountingapi.quickbooksdesktop.services`.
+Every resource method of `DesktopAccountingApiClient`, generated from the API contract (OpenAPI 3.1.0, API version 1.0.0, sha256 `d4adaec794b6`). Models are in `com.desktopaccountingapi.quickbooksdesktop.models`; services in `com.desktopaccountingapi.quickbooksdesktop.services`.
 
 Every method also has overloads without `RequestOptions` and, where the parameters are optional, without the parameter object. Non-list methods have a `...WithResponse(...)` variant returning `ApiResponse<T>`. Methods marked *async* are also available through `enqueue()` and return `RequestHandle<T>`.
 
