@@ -152,6 +152,7 @@ class ConformanceTest {
     /** What a scenario call produced. */
     private static final class Outcome {
         Object result;
+        String text;
         List<Object> items = new ArrayList<>();
         Page<?> page;
         RequestHandle<?> handle;
@@ -212,7 +213,7 @@ class ConformanceTest {
         Object target = client;
         for (int i = 0; i < parts.length - 1; i++) target = target.getClass().getMethod(parts[i]).invoke(target);
         if ("enqueue".equals(kind)) target = target.getClass().getMethod("enqueue").invoke(target);
-        String name = methodName(parts[parts.length - 1]) + ("withResponse".equals(kind) ? "WithResponse" : "");
+        String name = methodName(parts[parts.length - 1]) + ("withResponse".equals(kind) ? "WithResponse" : "xml".equals(kind) ? "Xml" : "");
         Method m = null;
         for (Method c : target.getClass().getMethods()) {
             if (!c.getName().equals(name)) continue;
@@ -224,7 +225,9 @@ class ConformanceTest {
         Map<String, Object> path = map(call.get("path"));
         List<Object> args = new ArrayList<>(path.values());
         Class<?>[] types = m.getParameterTypes();
-        if (types.length == args.size() + 2) {
+        if ("xml".equals(kind)) {
+            args.add(call.get("xml"));
+        } else if (types.length == args.size() + 2) {
             Map<String, Object> params = map(call.get("params"));
             args.add(build(types[args.size()], params));
         } else if (call.get("params") != null) {
@@ -240,6 +243,9 @@ class ConformanceTest {
         switch (kind) {
             case "call":
                 out.result = result;
+                break;
+            case "xml":
+                out.text = (String) result;
                 break;
             case "withResponse":
                 out.response = (ApiResponse<?>) result;
@@ -379,6 +385,7 @@ class ConformanceTest {
             Object w = wire(out.result);
             for (Map.Entry<String, Object> e : map(expected.get("result")).entrySet()) expectJson(name + " result." + e.getKey(), e.getValue(), at(w, e.getKey()));
         }
+        if (expected.containsKey("text")) assertEquals(expected.get("text"), out.text, name + " text");
         if (expected.containsKey("items")) expectJson(name + " items", expected.get("items"), ids(out.items));
         if (expected.containsKey("page")) {
             Map<String, Object> p = map(expected.get("page"));

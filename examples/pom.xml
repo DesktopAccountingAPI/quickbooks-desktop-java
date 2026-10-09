@@ -18,7 +18,7 @@
     <dependency>
       <groupId>com.desktopaccountingapi</groupId>
       <artifactId>quickbooks-desktop</artifactId>
-      <version>0.4.0</version>
+      <version>0.5.0</version>
     </dependency>
   </dependencies>
 

@@ -364,8 +364,13 @@ public final class ClientCore {
         return ApiException.create(ApiErrorInfo.of(code, e, Headers.empty(), null, "Request " + id + " ended with status " + status + "."));
     }
 
+    /**
+     * The request to long-poll after {@code 504 QBD_REQUEST_TIMEOUT}, or null. Same rule in every SDK:
+     * HTTP 504, code {@code QBD_REQUEST_TIMEOUT} and a non-empty {@code details.requestId}, whatever the
+     * outcome ({@code pending} for a write, {@code not_applicable} for a read).
+     */
     private static String pendingRequestId(ApiException e) {
-        if (!"QBD_REQUEST_TIMEOUT".equals(e.code())) return null;
+        if (e.status() == null || e.status() != 504 || !"QBD_REQUEST_TIMEOUT".equals(e.code())) return null;
         Object id = e.details().get("requestId");
         return id instanceof String && !((String) id).isEmpty() ? (String) id : null;
     }
@@ -544,7 +549,8 @@ public final class ClientCore {
                 ApiException err = toException(res);
                 Long retryAfter = Retry.retryAfterMillis(res.headers().get("Retry-After"), Instant.now());
                 long delay = retryAfter != null ? retryAfter : Retry.backoffMillis(attempt, JITTER);
-                boolean retry = attempt < maxRetries && Retry.shouldRetry(res.status(), res.headers().get("Daapi-Should-Retry"), err.outcome())
+                // A request still running after the server timeout is long-polled, never resent.
+                boolean retry = pendingRequestId(err) == null && attempt < maxRetries && Retry.shouldRetry(res.status(), res.headers().get("Daapi-Should-Retry"), err.outcome())
                     && (retryAfter == null || retryAfter <= Retry.MAX_RETRY_AFTER_MILLIS) && retryFits(delay);
                 if (!retry) throw err;
                 sleep(delay, "after HTTP " + res.status());

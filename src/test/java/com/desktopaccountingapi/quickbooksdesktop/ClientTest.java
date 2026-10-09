@@ -18,11 +18,14 @@ import com.desktopaccountingapi.quickbooksdesktop.errors.CursorExpiredException;
 import com.desktopaccountingapi.quickbooksdesktop.errors.DaapiException;
 import com.desktopaccountingapi.quickbooksdesktop.errors.IntegrationConnectionException;
 import com.desktopaccountingapi.quickbooksdesktop.errors.InvalidRequestException;
+import com.desktopaccountingapi.quickbooksdesktop.models.BarcodeCreateInput;
 import com.desktopaccountingapi.quickbooksdesktop.models.ErrorCode;
 import com.desktopaccountingapi.quickbooksdesktop.models.InvoiceCreateInput;
+import com.desktopaccountingapi.quickbooksdesktop.models.InvoiceLine;
 import com.desktopaccountingapi.quickbooksdesktop.models.InvoiceLineCreateInput;
 import com.desktopaccountingapi.quickbooksdesktop.models.InvoiceListParams;
 import com.desktopaccountingapi.quickbooksdesktop.models.InvoiceUpdateInput;
+import com.desktopaccountingapi.quickbooksdesktop.models.ReportCell;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -94,6 +97,23 @@ class ClientTest {
         for (String h : r.headers().keySet()) {
             if (h.toLowerCase().startsWith("daapi-")) assertEquals("Daapi-End-User-Id", h, "invented Daapi header " + h);
         }
+    }
+
+    @Test
+    void fieldsNamedValueUseValueAccessor() {
+        // SDK-E2E D7: a field named "value" is value(), not valueValue(), on outputs and inputs.
+        ReportCell cell = ReportCell.parse("{\"columnId\":\"2\",\"value\":\"156847.02\",\"dataType\":\"amttype\"}");
+        assertEquals("156847.02", cell.value());
+        BarcodeCreateInput barcode = new BarcodeCreateInput().value("0012345");
+        assertEquals("0012345", barcode.value());
+        assertTrue(barcode.toJson().contains("\"value\":\"0012345\""));
+    }
+
+    @Test
+    void responsePricesAreDecimals() {
+        // SDK-E2E D4: response rates carry the decimal pattern, so they are BigDecimal like the inputs.
+        InvoiceLine line = InvoiceLine.parse("{\"id\":\"1\",\"rate\":\"12.50000\"}");
+        assertEquals(new BigDecimal("12.50000"), line.rate());
     }
 
     @Test
