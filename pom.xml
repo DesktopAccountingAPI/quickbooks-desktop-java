@@ -6,7 +6,7 @@
 
   <groupId>com.desktopaccountingapi</groupId>
   <artifactId>quickbooks-desktop</artifactId>
-  <version>0.5.2</version>
+  <version>0.5.3</version>
   <packaging>jar</packaging>
 
   <name>Desktop Accounting API Java SDK</name>
@@ -34,7 +34,7 @@
     <connection>scm:git:https://github.com/DesktopAccountingAPI/quickbooks-desktop-java.git</connection>
     <developerConnection>scm:git:ssh://git@github.com/DesktopAccountingAPI/quickbooks-desktop-java.git</developerConnection>
     <url>https://github.com/DesktopAccountingAPI/quickbooks-desktop-java</url>
-    <tag>v0.5.2</tag>
+    <tag>v0.5.3</tag>
   </scm>
 
   <issueManagement>

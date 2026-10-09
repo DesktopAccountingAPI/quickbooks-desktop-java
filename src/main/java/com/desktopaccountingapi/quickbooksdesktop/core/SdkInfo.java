@@ -5,7 +5,7 @@ public final class SdkInfo {
     private SdkInfo() {}
 
     /** SDK version (SemVer). */
-    public static final String VERSION = "0.5.2";
+    public static final String VERSION = "0.5.3";
 
     /** {@code info.version} of the API contract the SDK was generated from. */
     public static final String API_VERSION = "1.0.0";

@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+## 0.5.3 (2026-10-09)
+
+- Released in lockstep with the other Desktop Accounting API packages; no entries for this package.
+
 ## 0.5.2 (2026-10-09)
 
 - Released in lockstep with the other Desktop Accounting API packages; no entries for this package.
