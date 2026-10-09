@@ -67,7 +67,7 @@ public abstract class InputObject implements JsonWritable {
      * @return the value, or null when unset or set to null
      */
     @SuppressWarnings("unchecked")
-    protected final <T> T value(String name) {
+    protected final <T> T stored(String name) {
         return (T) values.get(name);
     }
 

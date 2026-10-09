@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- A `504 QBD_REQUEST_TIMEOUT` is long-polled only when its HTTP status is 504 and it names a `details.requestId`, the rule every SDK follows (reads with outcome `not_applicable` and writes alike). Such a 504 is never retried.
+- **Breaking:** a model field named `value` is now `value()` (and `value(...)` on inputs) instead of `valueValue()`, for example `ReportCell.value()`, `CustomField.value()` and `BarcodeCreateInput.value(...)`. The protected `InputObject.value(String)` helper is renamed `stored(String)`.
+- **Breaking (types):** Response prices, rates and percentages (for example `QbdInvoiceLine.rate`, `QbdSalesOrPurchaseDetail.price`, `ratePercent`) carry the same decimal pattern as their inputs and as amounts, so they are `BigDecimal` instead of `String`.
+- The README documents resuming a list from a stored `nextCursor()` (`new InvoiceListParams().cursor(savedCursor)`), now covered by the cross-language conformance suite, and the webhook verifier's `java.time.Clock`.
 - **Breaking:** `qbd().reports().budgetSummary(params)` now requires `fiscalYear` in `ReportBudgetSummaryParams` (a required field, like `reportType`; the two-argument constructor sets both). The API always rejected a budget report without it (`400 INVALID_PARAMETER`, `param: "fiscalYear"`), so no working call changes behavior; code that omitted it now fails before sending instead of with the API error. Set it with `new ReportBudgetSummaryParams(reportType, 2026)` or `.fiscalYear(2026)`.
 - `WebhookEventType.CONNECTION_COMPANY_FILE_REMARKED` (`connection.company_file_remarked`): the marker that identifies a connection's company file was created, written back after the file lost it (for example a restored backup) or adopted from the file; `data.reason` is `marker_created`, `marker_restored` or `marker_adopted`.
 - `ApiException.getRequestId()`, the same value as `requestId()`, for code and tools that expect bean-style getters. `ApiException.toString()` is documented: it adds the HTTP status, the error code and the request ID to the message (`...IntegrationException: 404 QBD_OBJECT_NOT_FOUND The QuickBooks object does not exist. (req_...)`), as .NET's `ToString()` does; `getMessage()` stays the API message. Log the exception, not only `getMessage()`, to keep the request ID.
@@ -22,7 +26,7 @@
 
 ## 0.1.0
 
-First release, generated from API contract 1.0.0 (sha256 `68a0d76d6b51`, 275 operations).
+First release, generated from API contract 1.0.0 (sha256 `1fc5496cc47b`, 275 operations).
 
 - `DesktopAccountingApiClient` with builder, `fromEnv()` and `forEndUser(...)`; local secret-key validation.
 - Typed models for every request and response: `BigDecimal` money with preserved scale, `LocalDate`, `OffsetDateTime`, open enums as string constants, unknown fields kept in `additionalProperties()`, `toJson()` on every model.
