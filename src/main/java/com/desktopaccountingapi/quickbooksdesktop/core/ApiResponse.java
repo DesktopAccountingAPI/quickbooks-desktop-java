@@ -17,6 +17,7 @@ public final class ApiResponse<T> {
     private final int statusCode;
     private final Headers headers;
     private final String idempotencyKey;
+    private final String requestId;
 
     /**
      * Creates the response.
@@ -38,10 +39,26 @@ public final class ApiResponse<T> {
      * @param idempotencyKey the {@code Idempotency-Key} sent, or null
      */
     public ApiResponse(T data, int statusCode, Headers headers, String idempotencyKey) {
+        this(data, statusCode, headers, idempotencyKey, null);
+    }
+
+    /**
+     * Creates the response of a call whose result came from another request than the final
+     * response (a request the SDK long-polled after {@code 504 QBD_REQUEST_TIMEOUT}).
+     *
+     * @param data parsed result
+     * @param statusCode HTTP status
+     * @param headers response headers
+     * @param idempotencyKey the {@code Idempotency-Key} sent, or null
+     * @param requestId the ID of the request that produced the result, or null for the
+     *     {@code Daapi-Request-Id} header
+     */
+    public ApiResponse(T data, int statusCode, Headers headers, String idempotencyKey, String requestId) {
         this.data = data;
         this.statusCode = statusCode;
         this.headers = headers;
         this.idempotencyKey = idempotencyKey;
+        this.requestId = requestId != null ? requestId : headers.get("Daapi-Request-Id");
     }
 
     /**
@@ -82,11 +99,14 @@ public final class ApiResponse<T> {
     }
 
     /**
-     * The {@code Daapi-Request-Id} header.
+     * The ID of the request that produced the result: the {@code Daapi-Request-Id} header, or, after
+     * the SDK long-polled a request that timed out on the server ({@code 504 QBD_REQUEST_TIMEOUT}),
+     * that request's ID, which {@code client.requests().retrieve(id)} finds. The final poll's own ID
+     * stays in {@link #headers()}.
      *
      * @return the request ID, or null
      */
     public String requestId() {
-        return headers.get("Daapi-Request-Id");
+        return requestId;
     }
 }

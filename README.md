@@ -12,7 +12,7 @@ The Java client for [Desktop Accounting API](https://www.desktopaccountingapi.co
 
 ## Install
 
-The artifact is `com.desktopaccountingapi:quickbooks-desktop` on [Maven Central](https://central.sonatype.com/artifact/com.desktopaccountingapi/quickbooks-desktop). The current version is **0.5.0**.
+The artifact is `com.desktopaccountingapi:quickbooks-desktop` on [Maven Central](https://central.sonatype.com/artifact/com.desktopaccountingapi/quickbooks-desktop). The current version is **0.5.1**.
 
 Maven:
 
@@ -20,20 +20,20 @@ Maven:
 <dependency>
   <groupId>com.desktopaccountingapi</groupId>
   <artifactId>quickbooks-desktop</artifactId>
-  <version>0.5.0</version>
+  <version>0.5.1</version>
 </dependency>
 ```
 
 Gradle (Kotlin DSL):
 
 ```kotlin skip
-implementation("com.desktopaccountingapi:quickbooks-desktop:0.5.0")
+implementation("com.desktopaccountingapi:quickbooks-desktop:0.5.1")
 ```
 
 Gradle (Groovy DSL):
 
 ```groovy skip
-implementation 'com.desktopaccountingapi:quickbooks-desktop:0.5.0'
+implementation 'com.desktopaccountingapi:quickbooks-desktop:0.5.1'
 ```
 
 ## Requirements
@@ -275,7 +275,8 @@ client.qbd().invoices().retrieve("7-1700000000", opts);
 - Dates are `LocalDate`; timestamps are `OffsetDateTime` with the offset QuickBooks reported. Timestamps are always sent with seconds (`2026-10-05T09:14:00-07:00`).
 - Filters such as `updatedAfter` accept a `String`, `LocalDate` or `OffsetDateTime`.
 - Enums are open: fields are `String`, and the known values are constants (`DateMacro.THIS_MONTH`, `RequestStatus.SUCCEEDED`). Values added to the API later pass through unchanged.
-- Input objects have fluent setters. Fields you never set are not sent. On clearable fields, `null` sends JSON `null` and clears the value in QuickBooks:
+- Input objects have fluent setters. Fields you never set are not sent. On clearable fields, `null` sends JSON `null` and clears the value in QuickBooks.
+- Required fields are checked before the request is sent, not by the compiler: a required field you never set throws `DaapiException` and nothing is sent. The constructor that takes the required fields (`new InvoiceCreateInput(customerId)`) is the way to have the compiler check them:
 
 ```java
 Invoice invoice = client.qbd().invoices().retrieve("7-1700000000");
@@ -424,6 +425,8 @@ ApiResponse<Customer> r = client.qbd().customers().retrieveWithResponse("8000000
 System.out.println(r.data().fullName() + " " + r.statusCode() + " " + r.requestId() + " " + r.headers().get("Daapi-Warnings"));
 ```
 
+`r.requestId()` is the ID of the request that produced the result. After the SDK long-polled a request that timed out on the server (`504 QBD_REQUEST_TIMEOUT`), it is that request's ID, which `client.requests().retrieve(r.requestId())` finds; the final poll's own ID stays in the `r.headers().get("Daapi-Request-Id")` header.
+
 ## Passthrough
 
 Send qbXML request elements directly, as JSON or as raw XML:
@@ -487,7 +490,7 @@ What changes beyond names: every write carries an `Idempotency-Key`, only safe f
 - The Java, Node.js, Python and .NET SDKs and the [MCP server](https://github.com/DesktopAccountingAPI/quickbooks-desktop-mcp) are released together with the same version number, generated from the same API contract.
 - Every release is listed in [CHANGELOG.md](CHANGELOG.md) and tagged `v<version>` on GitHub.
 - The API is versioned in its path (`/v1`). Within `v1` the API only adds operations, fields, enum values and error codes, which do not break existing code.
-- `.daapi-sdk.json` records the contract's SHA-256 (`1fc5496cc47b...` for this release), and `SdkInfo.VERSION`, `SdkInfo.API_VERSION` and `SdkInfo.CONTRACT_SHA256` expose the same at runtime.
+- `.daapi-sdk.json` records the contract's SHA-256 (`3d102b7bcecb...` for this release), and `SdkInfo.VERSION`, `SdkInfo.API_VERSION` and `SdkInfo.CONTRACT_SHA256` expose the same at runtime.
 
 ## Support
 
@@ -504,7 +507,7 @@ mise install
 mise run check   # build with -Xlint:all -Werror for Java 11, unit tests, conformance suite, javadoc, examples, README samples, Central bundle dry run
 ```
 
-To build from source, clone the repository and run `mvn -B install -DskipTests`; that puts `com.desktopaccountingapi:quickbooks-desktop:0.5.0` into your local Maven repository. Code under `src/main/java/com/desktopaccountingapi/quickbooksdesktop/{models,services}`, `DesktopAccountingApiClient.java` and this README are generated; `mise run check` compiles every Java sample in this README with `-Xlint:all -Werror` and runs the quickstart against the conformance mock server. See [CONTRIBUTING.md](CONTRIBUTING.md).
+To build from source, clone the repository and run `mvn -B install -DskipTests`; that puts `com.desktopaccountingapi:quickbooks-desktop:0.5.1` into your local Maven repository. Code under `src/main/java/com/desktopaccountingapi/quickbooksdesktop/{models,services}`, `DesktopAccountingApiClient.java` and this README are generated; `mise run check` compiles every Java sample in this README with `-Xlint:all -Werror` and runs the quickstart against the conformance mock server. See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## License
 

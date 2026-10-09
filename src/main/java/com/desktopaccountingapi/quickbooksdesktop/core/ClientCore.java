@@ -127,7 +127,8 @@ public final class ClientCore {
                 if (pending == null) throw e;
                 log("request " + pending + " still running after a server timeout; polling until the call deadline");
                 Polled polled = poll(pending, c.deadlineNanos, c.o, e, c.idempotencyKey);
-                return new ApiResponse<>(parseResult(op, polled.result, parse), polled.status, polled.headers, c.idempotencyKey);
+                // The result belongs to the request that timed out, not to the poll that collected it.
+                return new ApiResponse<>(parseResult(op, polled.result, parse), polled.status, polled.headers, c.idempotencyKey, pending);
             }
             return new ApiResponse<>(parseResult(op, parseJson(op, res.body()), parse), res.status(), res.headers(), c.idempotencyKey);
         } catch (DaapiException e) {
