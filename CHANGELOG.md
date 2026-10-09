@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+## 0.5.2 (2026-10-09)
+
+- Released in lockstep with the other Desktop Accounting API packages; no entries for this package.
+
 ## 0.5.1 (2026-10-09)
 
 - `ApiResponse.requestId()` after a long-polled call is the ID of the request that produced the result (the 504's `details.requestId`), which `client.requests().retrieve()` finds. It was the last poll's ID, which answers `404`. The poll's own ID stays in `headers().get("Daapi-Request-Id")`.
@@ -34,16 +38,30 @@
 - A poll answer that arrives after the deadline (the default transport times the headers, not the body) is not returned, even a settled one; the call throws `RequestPendingException` with that snapshot.
 - The default transport bounds the whole exchange, headers and body, by the attempt timeout (`HttpClient.sendAsync` canceled at the timeout), so a trickling body no longer holds the calling thread past the deadline.
 
-## 0.2.0
+## 0.2.1 (2026-10-07)
+
+Generated from API contract sha256 `b5774d24bc81`. Documentation only; no API surface change.
+
+- `updatedAt` and `revisionNumber` descriptions say that QuickBooks changes them at most once per second: an incremental sync should overlap `updatedAfter` and deduplicate by `id` and `revisionNumber`.
+- The fixes for status 3261 (`QBD_INSUFFICIENT_PERMISSION`) name the personal-data checkbox in QuickBooks and what to do when it is gray: send the end user a new setup link and choose "Enable payroll access".
+- Item sites document what QuickBooks returns without Advanced Inventory: an empty list, and `404 QBD_OBJECT_NOT_FOUND` from retrieve, rather than an error.
+
+## 0.2.0 (2026-10-07)
 
 - `defaultHeader(...)` / `defaultHeaders(...)` on the client builder, and `totalTimeout(...)` on the builder and `RequestOptions`: a time budget for a whole call, including retries and the wait for a pending request.
 - A base URL ending in `/v1` (Conductor's form) no longer produces `/v1/v1/...`.
 - `Pager<T>` requests the next page only when the iteration needs it, so a loop that stops early sends no extra QuickBooks query. While iterating items, a page held for more than 2 seconds makes the SDK request the next page in the background; `listAll()` always reads ahead.
 - README: "Porting from Conductor".
 
-## 0.1.0
+## 0.1.1 (2026-10-06)
 
-First release, generated from API contract 1.0.0 (sha256 `3d102b7bcecb`, 275 operations).
+Generated from API contract sha256 `1cc3058cecb5`, the same contract as 0.1.0. No API surface change.
+
+- The README is rewritten: install with exact package coordinates, authentication, a quickstart, common workflows, errors, async requests and webhooks, versioning and support. Every code sample in it is compiled against the package before release, and the quickstart runs against a mock server.
+
+## 0.1.0 (2026-10-06)
+
+First release, generated from API contract 1.0.0 (sha256 `1cc3058cecb5`, 275 operations).
 
 - `DesktopAccountingApiClient` with builder, `fromEnv()` and `forEndUser(...)`; local secret-key validation.
 - Typed models for every request and response: `BigDecimal` money with preserved scale, `LocalDate`, `OffsetDateTime`, open enums as string constants, unknown fields kept in `additionalProperties()`, `toJson()` on every model.
