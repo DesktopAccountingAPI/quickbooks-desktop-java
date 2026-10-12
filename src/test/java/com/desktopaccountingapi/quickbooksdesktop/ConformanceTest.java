@@ -386,7 +386,15 @@ class ConformanceTest {
             for (Map.Entry<String, Object> e : map(expected.get("result")).entrySet()) expectJson(name + " result." + e.getKey(), e.getValue(), at(w, e.getKey()));
         }
         if (expected.containsKey("text")) assertEquals(expected.get("text"), out.text, name + " text");
+        if (expected.containsKey("variant")) {
+            assertNotNull(out.result, name + ": no result");
+            assertEquals(expected.get("variant"), out.result.getClass().getSimpleName(), name + " variant");
+        }
         if (expected.containsKey("items")) expectJson(name + " items", expected.get("items"), ids(out.items));
+        if (expected.containsKey("itemVariants")) {
+            List<Object> classes = out.items.stream().map(i -> (Object) i.getClass().getSimpleName()).collect(Collectors.toList());
+            expectJson(name + " itemVariants", expected.get("itemVariants"), classes);
+        }
         if (expected.containsKey("page")) {
             Map<String, Object> p = map(expected.get("page"));
             assertNotNull(out.page, name + ": no page");

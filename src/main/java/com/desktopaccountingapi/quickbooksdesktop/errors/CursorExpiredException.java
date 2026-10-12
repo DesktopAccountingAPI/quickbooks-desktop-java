@@ -6,9 +6,11 @@ package com.desktopaccountingapi.quickbooksdesktop.errors;
  * restarted, or the iterator was evicted ({@link #reason()}).
  *
  * <p>The SDK never restarts the list on its own, because records may have changed in between.
- * The progress fields say how far the iteration got. To resume, start a new list sorted by
- * modification time with {@code updatedAfter} set to {@link #lastUpdatedAt()} (a watermark) and skip
- * IDs you already processed, or restart from the beginning.
+ * The progress fields say how far the iteration got. Restart the same query and skip IDs
+ * you already processed. Do not resume from {@link #lastUpdatedAt()}: QuickBooks returns records in
+ * its own order, not by {@code updatedAt}, so records not yet read can be older. An incremental sync
+ * keeps the {@code updatedAfter} watermark of its previous completed sync until the whole traversal
+ * finishes (pagination guide, "Recovering from CURSOR_EXPIRED").
  */
 public class CursorExpiredException extends InvalidRequestException {
     private static final long serialVersionUID = 1L;
@@ -93,8 +95,9 @@ public class CursorExpiredException extends InvalidRequestException {
     }
 
     /**
-     * {@code updatedAt} of the last item delivered, exactly as received. Use it as the
-     * {@code updatedAfter} watermark when restarting.
+     * {@code updatedAt} of the last item delivered, exactly as received. Progress information only:
+     * it is not a safe {@code updatedAfter} watermark, because QuickBooks does not return records in
+     * {@code updatedAt} order.
      *
      * @return the timestamp, or null
      */

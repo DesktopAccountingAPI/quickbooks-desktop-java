@@ -2,7 +2,7 @@
 
 The Java client for [Desktop Accounting API](https://www.desktopaccountingapi.com/), a REST API for QuickBooks Desktop and QuickBooks Enterprise. Your server makes typed calls such as `client.qbd().invoices().create(...)`, and Desktop Accounting API delivers them to your customer's company file through the QuickBooks Web Connector.
 
-- Covers all 275 operations of API 1.0.0: QuickBooks objects and reports (`client.qbd()`), end users, auth sessions, request tracking, qbXML passthrough and webhook verification.
+- Covers all 433 operations of API 1.0.0: QuickBooks objects and reports (`client.qbd()`), end users, auth sessions, request tracking, qbXML passthrough and webhook verification.
 - Immutable models, fluent inputs, `Iterable` and `Stream` pagination and unchecked typed exceptions for every error type.
 - Amounts are `BigDecimal`, sent with their scale preserved.
 - Every write carries an idempotency key, retries happen only where they cannot duplicate data, and an expired QuickBooks cursor never restarts a list silently.
@@ -12,7 +12,7 @@ The Java client for [Desktop Accounting API](https://www.desktopaccountingapi.co
 
 ## Install
 
-The artifact is `com.desktopaccountingapi:quickbooks-desktop` on [Maven Central](https://central.sonatype.com/artifact/com.desktopaccountingapi/quickbooks-desktop). The current version is **0.5.4**.
+The artifact is `com.desktopaccountingapi:quickbooks-desktop` on [Maven Central](https://central.sonatype.com/artifact/com.desktopaccountingapi/quickbooks-desktop). The current version is **0.6.0**.
 
 Maven:
 
@@ -20,20 +20,20 @@ Maven:
 <dependency>
   <groupId>com.desktopaccountingapi</groupId>
   <artifactId>quickbooks-desktop</artifactId>
-  <version>0.5.4</version>
+  <version>0.6.0</version>
 </dependency>
 ```
 
 Gradle (Kotlin DSL):
 
 ```kotlin skip
-implementation("com.desktopaccountingapi:quickbooks-desktop:0.5.4")
+implementation("com.desktopaccountingapi:quickbooks-desktop:0.6.0")
 ```
 
 Gradle (Groovy DSL):
 
 ```groovy skip
-implementation 'com.desktopaccountingapi:quickbooks-desktop:0.5.4'
+implementation 'com.desktopaccountingapi:quickbooks-desktop:0.6.0'
 ```
 
 ## Requirements
@@ -301,7 +301,7 @@ for (Page<Customer> page : customers.pages()) System.out.println(page.data().siz
 System.out.println(active + " of " + all.size());
 ```
 
-The next page is requested only when the iteration reaches it, so `break`ing out of a loop never sends an extra QuickBooks query. While you iterate items, a page held for more than 2 seconds makes the SDK request the next page in the background, which keeps slow loops inside the cursor's idle window. `pages()` requests each page when you ask for it; `listAll()` always requests the next page as soon as a page arrives. A network error on a continue request retries the same cursor, which returns the same page.
+The next page is requested only when the iteration reaches it, so `break`ing out of a loop never sends an extra QuickBooks query. Breaking out early is also safe for the end user's QuickBooks: the API releases the cursor you leave behind by stopping its QuickBooks iterator once the cursor idles out (about 10 seconds after its last page) or when a fourth cursor list starts for the same end user, so abandoned lists never use up QuickBooks' open-iterator limit. Cursor lifetime: about 10 seconds idle after each page (`cursorExpiresAt`), at most 3 open cursor lists per end user, and never longer than the QuickBooks session that started it; continuing an expired cursor raises `CursorExpiredException`, never partial data. While you iterate items, a page held for more than 2 seconds makes the SDK request the next page in the background, which keeps slow loops inside the cursor's idle window. `pages()` requests each page when you ask for it; `listAll()` always requests the next page as soon as a page arrives. A network error on a continue request retries the same cursor, which returns the same page.
 
 To resume from a page you stored earlier, for example across HTTP requests, pass its `nextCursor()` as `cursor`: `client.qbd().invoices().list(new InvoiceListParams().cursor(savedCursor).limit(100)).firstPage()` returns that page, and iterating continues from it. Filters live in the cursor, so pass only the cursor and, if you like, the limit. A QuickBooks cursor expires when it sits idle, so resume soon after you store it.
 
@@ -490,7 +490,7 @@ What changes beyond names: every write carries an `Idempotency-Key`, only safe f
 - The Java, Node.js, Python and .NET SDKs and the [MCP server](https://github.com/DesktopAccountingAPI/quickbooks-desktop-mcp) are released together with the same version number, generated from the same API contract.
 - Every release is listed in [CHANGELOG.md](CHANGELOG.md) and tagged `v<version>` on GitHub.
 - The API is versioned in its path (`/v1`). Within `v1` the API only adds operations, fields, enum values and error codes, which do not break existing code.
-- `.daapi-sdk.json` records the contract's SHA-256 (`d4adaec794b6...` for this release), and `SdkInfo.VERSION`, `SdkInfo.API_VERSION` and `SdkInfo.CONTRACT_SHA256` expose the same at runtime.
+- `.daapi-sdk.json` records the contract's SHA-256 (`45acc3e65d06...` for this release), and `SdkInfo.VERSION`, `SdkInfo.API_VERSION` and `SdkInfo.CONTRACT_SHA256` expose the same at runtime.
 
 ## Support
 
@@ -507,7 +507,7 @@ mise install
 mise run check   # build with -Xlint:all -Werror for Java 11, unit tests, conformance suite, javadoc, examples, README samples, Central bundle dry run
 ```
 
-To build from source, clone the repository and run `mvn -B install -DskipTests`; that puts `com.desktopaccountingapi:quickbooks-desktop:0.5.4` into your local Maven repository. Code under `src/main/java/com/desktopaccountingapi/quickbooksdesktop/{models,services}`, `DesktopAccountingApiClient.java` and this README are generated; `mise run check` compiles every Java sample in this README with `-Xlint:all -Werror` and runs the quickstart against the conformance mock server. See [CONTRIBUTING.md](CONTRIBUTING.md).
+To build from source, clone the repository and run `mvn -B install -DskipTests`; that puts `com.desktopaccountingapi:quickbooks-desktop:0.6.0` into your local Maven repository. Code under `src/main/java/com/desktopaccountingapi/quickbooksdesktop/{models,services}`, `DesktopAccountingApiClient.java` and this README are generated; `mise run check` compiles every Java sample in this README with `-Xlint:all -Werror` and runs the quickstart against the conformance mock server. See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## License
 

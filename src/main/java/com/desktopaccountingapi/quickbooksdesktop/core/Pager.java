@@ -36,7 +36,8 @@ import java.util.stream.StreamSupport;
  *
  * <p>If the cursor expires, iteration throws {@link CursorExpiredException} with
  * {@code itemsYielded}, {@code pagesServed}, {@code lastId} and {@code lastUpdatedAt}. The SDK never
- * restarts a list on its own: restart it with an {@code updatedAfter} watermark.
+ * restarts a list on its own: restart the same query (an incremental sync keeps its previous
+ * {@code updatedAfter} watermark) and skip IDs already processed.
  *
  * @param <T> item type
  */
