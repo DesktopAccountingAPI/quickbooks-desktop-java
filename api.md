@@ -2,7 +2,7 @@
 
 # API reference (Java)
 
-Every resource method of `DesktopAccountingApiClient`, generated from the API contract (OpenAPI 3.1.0, API version 1.0.0, sha256 `d4adaec794b6`). Models are in `com.desktopaccountingapi.quickbooksdesktop.models`; services in `com.desktopaccountingapi.quickbooksdesktop.services`.
+Every resource method of `DesktopAccountingApiClient`, generated from the API contract (OpenAPI 3.1.0, API version 1.0.0, sha256 `45acc3e65d06`). Models are in `com.desktopaccountingapi.quickbooksdesktop.models`; services in `com.desktopaccountingapi.quickbooksdesktop.services`.
 
 Every method also has overloads without `RequestOptions` and, where the parameters are optional, without the parameter object. Non-list methods have a `...WithResponse(...)` variant returning `ApiResponse<T>`. Methods marked *async* are also available through `enqueue()` and return `RequestHandle<T>`.
 
@@ -14,11 +14,14 @@ Every method also has overloads without `RequestOptions` and, where the paramete
 
 - `EndUser create(EndUserCreateInput params, RequestOptions options)`<br>`POST /v1/end-users` (write): Create an end user
 - `EndUserDeleted delete(String id, RequestOptions options)`<br>`DELETE /v1/end-users/{id}` (write): Delete an end user
+- `EndUserConnection disableConnection(String id, RequestOptions options)`<br>`POST /v1/end-users/{id}/connection/disable` (write): Disable the connection
+- `EndUserConnection enableConnection(String id, RequestOptions options)`<br>`POST /v1/end-users/{id}/connection/enable` (write): Enable the connection
 - `Pager<EndUser> list(EndUserListParams params, RequestOptions options)`<br>`GET /v1/end-users` (paginated): List end users
 - `PassthroughResponse passthrough(String id, PassthroughInput params, RequestOptions options)`<br>`POST /v1/end-users/{id}/passthrough/{integrationSlug}` (async, write): Send a raw qbXML request
 - `String passthroughXml(String id, String xml, RequestOptions options)`<br>`POST /v1/end-users/{id}/passthrough/{integrationSlug}` with `application/xml`: raw qbXML variant
 - `EndUser resetCompanyFile(String id, EndUserResetCompanyFileInput params, RequestOptions options)`<br>`POST /v1/end-users/{id}/reset-company-file` (write): Reset the company file
 - `EndUser retrieve(String id, RequestOptions options)`<br>`GET /v1/end-users/{id}`: Retrieve an end user
+- `EndUserConnection retrieveConnection(String id, RequestOptions options)`<br>`GET /v1/end-users/{id}/connection`: Retrieve the connection
 - `EndUser update(String id, EndUserUpdateInput params, RequestOptions options)`<br>`POST /v1/end-users/{id}` (write): Update an end user
 
 ## `client.qbd()`
@@ -32,8 +35,11 @@ Every method also has overloads without `RequestOptions` and, where the paramete
 ## `client.qbd().accounts()`
 
 - `Account create(AccountCreateInput params, RequestOptions options)`<br>`POST /v1/quickbooks-desktop/accounts` (async, write): Create an account
+- `AccountDeleted delete(String id, AccountDeleteParams params, RequestOptions options)`<br>`DELETE /v1/quickbooks-desktop/accounts/{id}` (async, write): Delete an account
 - `AccountList list(AccountListParams params, RequestOptions options)`<br>`GET /v1/quickbooks-desktop/accounts` (async): List accounts
+- `ListMerge merge(String id, ListMergeInput params, RequestOptions options)`<br>`POST /v1/quickbooks-desktop/accounts/{id}/merge` (async, write): Merge an account into another
 - `Account retrieve(String id, RequestOptions options)`<br>`GET /v1/quickbooks-desktop/accounts/{id}` (async): Retrieve an account
+- `CustomFieldValue setCustomField(String id, CustomFieldValueInput params, RequestOptions options)`<br>`POST /v1/quickbooks-desktop/accounts/{id}/custom-fields` (async, write): Set a custom field on an account
 - `Account update(String id, AccountUpdateInput params, RequestOptions options)`<br>`POST /v1/quickbooks-desktop/accounts/{id}` (async, write): Update an account
 
 ## `client.qbd().billCheckPayments()`
@@ -42,6 +48,7 @@ Every method also has overloads without `RequestOptions` and, where the paramete
 - `BillCheckPaymentDeleted delete(String id, RequestOptions options)`<br>`DELETE /v1/quickbooks-desktop/bill-check-payments/{id}` (async, write): Delete a bill check payment
 - `Pager<BillCheckPayment> list(BillCheckPaymentListParams params, RequestOptions options)`<br>`GET /v1/quickbooks-desktop/bill-check-payments` (paginated, async): List bill check payments
 - `BillCheckPayment retrieve(String id, RequestOptions options)`<br>`GET /v1/quickbooks-desktop/bill-check-payments/{id}` (async): Retrieve a bill check payment
+- `CustomFieldValue setCustomField(String id, TransactionCustomFieldValueInput params, RequestOptions options)`<br>`POST /v1/quickbooks-desktop/bill-check-payments/{id}/custom-fields` (async, write): Set a custom field on a bill check payment
 - `BillCheckPayment update(String id, BillCheckPaymentUpdateInput params, RequestOptions options)`<br>`POST /v1/quickbooks-desktop/bill-check-payments/{id}` (async, write): Update a bill check payment
 - `BillCheckPaymentVoided voidTransaction(String id, RequestOptions options)`<br>`POST /v1/quickbooks-desktop/bill-check-payments/{id}/void` (async, write): Void a bill check payment
 
@@ -51,7 +58,15 @@ Every method also has overloads without `RequestOptions` and, where the paramete
 - `BillCreditCardPaymentDeleted delete(String id, RequestOptions options)`<br>`DELETE /v1/quickbooks-desktop/bill-credit-card-payments/{id}` (async, write): Delete a bill credit card payment
 - `Pager<BillCreditCardPayment> list(BillCreditCardPaymentListParams params, RequestOptions options)`<br>`GET /v1/quickbooks-desktop/bill-credit-card-payments` (paginated, async): List bill credit card payments
 - `BillCreditCardPayment retrieve(String id, RequestOptions options)`<br>`GET /v1/quickbooks-desktop/bill-credit-card-payments/{id}` (async): Retrieve a bill credit card payment
+- `CustomFieldValue setCustomField(String id, TransactionCustomFieldValueInput params, RequestOptions options)`<br>`POST /v1/quickbooks-desktop/bill-credit-card-payments/{id}/custom-fields` (async, write): Set a custom field on a bill credit card payment
 - `BillCreditCardPaymentVoided voidTransaction(String id, RequestOptions options)`<br>`POST /v1/quickbooks-desktop/bill-credit-card-payments/{id}/void` (async, write): Void a bill credit card payment
+
+## `client.qbd().billingRates()`
+
+- `BillingRate create(BillingRateCreateInput params, RequestOptions options)`<br>`POST /v1/quickbooks-desktop/billing-rates` (async, write): Create a billing rate
+- `BillingRateDeleted delete(String id, BillingRateDeleteParams params, RequestOptions options)`<br>`DELETE /v1/quickbooks-desktop/billing-rates/{id}` (async, write): Delete a billing rate
+- `BillingRateList list(BillingRateListParams params, RequestOptions options)`<br>`GET /v1/quickbooks-desktop/billing-rates` (async): List billing rates
+- `BillingRate retrieve(String id, RequestOptions options)`<br>`GET /v1/quickbooks-desktop/billing-rates/{id}` (async): Retrieve a billing rate
 
 ## `client.qbd().bills()`
 
@@ -59,6 +74,7 @@ Every method also has overloads without `RequestOptions` and, where the paramete
 - `BillDeleted delete(String id, RequestOptions options)`<br>`DELETE /v1/quickbooks-desktop/bills/{id}` (async, write): Delete a bill
 - `Pager<Bill> list(BillListParams params, RequestOptions options)`<br>`GET /v1/quickbooks-desktop/bills` (paginated, async): List bills
 - `Bill retrieve(String id, RequestOptions options)`<br>`GET /v1/quickbooks-desktop/bills/{id}` (async): Retrieve a bill
+- `CustomFieldValue setCustomField(String id, TransactionCustomFieldValueInput params, RequestOptions options)`<br>`POST /v1/quickbooks-desktop/bills/{id}/custom-fields` (async, write): Set a custom field on a bill
 - `Bill update(String id, BillUpdateInput params, RequestOptions options)`<br>`POST /v1/quickbooks-desktop/bills/{id}` (async, write): Update a bill
 - `BillVoided voidTransaction(String id, RequestOptions options)`<br>`POST /v1/quickbooks-desktop/bills/{id}/void` (async, write): Void a bill
 
@@ -72,6 +88,7 @@ Every method also has overloads without `RequestOptions` and, where the paramete
 - `BuildAssemblyDeleted delete(String id, RequestOptions options)`<br>`DELETE /v1/quickbooks-desktop/build-assemblies/{id}` (async, write): Delete a build assembly
 - `Pager<BuildAssembly> list(BuildAssemblyListParams params, RequestOptions options)`<br>`GET /v1/quickbooks-desktop/build-assemblies` (paginated, async): List build assemblies
 - `BuildAssembly retrieve(String id, RequestOptions options)`<br>`GET /v1/quickbooks-desktop/build-assemblies/{id}` (async): Retrieve a build assembly
+- `CustomFieldValue setCustomField(String id, TransactionCustomFieldValueInput params, RequestOptions options)`<br>`POST /v1/quickbooks-desktop/build-assemblies/{id}/custom-fields` (async, write): Set a custom field on a build assembly
 - `BuildAssembly update(String id, BuildAssemblyUpdateInput params, RequestOptions options)`<br>`POST /v1/quickbooks-desktop/build-assemblies/{id}` (async, write): Update a build assembly
 
 ## `client.qbd().checks()`
@@ -80,13 +97,16 @@ Every method also has overloads without `RequestOptions` and, where the paramete
 - `CheckDeleted delete(String id, RequestOptions options)`<br>`DELETE /v1/quickbooks-desktop/checks/{id}` (async, write): Delete a check
 - `Pager<Check> list(CheckListParams params, RequestOptions options)`<br>`GET /v1/quickbooks-desktop/checks` (paginated, async): List checks
 - `Check retrieve(String id, RequestOptions options)`<br>`GET /v1/quickbooks-desktop/checks/{id}` (async): Retrieve a check
+- `CustomFieldValue setCustomField(String id, TransactionCustomFieldValueInput params, RequestOptions options)`<br>`POST /v1/quickbooks-desktop/checks/{id}/custom-fields` (async, write): Set a custom field on a check
 - `Check update(String id, CheckUpdateInput params, RequestOptions options)`<br>`POST /v1/quickbooks-desktop/checks/{id}` (async, write): Update a check
 - `CheckVoided voidTransaction(String id, RequestOptions options)`<br>`POST /v1/quickbooks-desktop/checks/{id}/void` (async, write): Void a check
 
 ## `client.qbd().classes()`
 
 - `Class create(ClassCreateInput params, RequestOptions options)`<br>`POST /v1/quickbooks-desktop/classes` (async, write): Create a class
-- `ClassList list(ClasseListParams params, RequestOptions options)`<br>`GET /v1/quickbooks-desktop/classes` (async): List classes
+- `ClassDeleted delete(String id, ClassDeleteParams params, RequestOptions options)`<br>`DELETE /v1/quickbooks-desktop/classes/{id}` (async, write): Delete a class
+- `ClassList list(ClassListParams params, RequestOptions options)`<br>`GET /v1/quickbooks-desktop/classes` (async): List classes
+- `ListMerge merge(String id, ListMergeInput params, RequestOptions options)`<br>`POST /v1/quickbooks-desktop/classes/{id}/merge` (async, write): Merge a class into another
 - `Class retrieve(String id, RequestOptions options)`<br>`GET /v1/quickbooks-desktop/classes/{id}` (async): Retrieve a class
 - `Class update(String id, ClassUpdateInput params, RequestOptions options)`<br>`POST /v1/quickbooks-desktop/classes/{id}` (async, write): Update a class
 
@@ -100,6 +120,7 @@ Every method also has overloads without `RequestOptions` and, where the paramete
 - `CreditCardChargeDeleted delete(String id, RequestOptions options)`<br>`DELETE /v1/quickbooks-desktop/credit-card-charges/{id}` (async, write): Delete a credit card charge
 - `Pager<CreditCardCharge> list(CreditCardChargeListParams params, RequestOptions options)`<br>`GET /v1/quickbooks-desktop/credit-card-charges` (paginated, async): List credit card charges
 - `CreditCardCharge retrieve(String id, RequestOptions options)`<br>`GET /v1/quickbooks-desktop/credit-card-charges/{id}` (async): Retrieve a credit card charge
+- `CustomFieldValue setCustomField(String id, TransactionCustomFieldValueInput params, RequestOptions options)`<br>`POST /v1/quickbooks-desktop/credit-card-charges/{id}/custom-fields` (async, write): Set a custom field on a credit card charge
 - `CreditCardCharge update(String id, CreditCardChargeUpdateInput params, RequestOptions options)`<br>`POST /v1/quickbooks-desktop/credit-card-charges/{id}` (async, write): Update a credit card charge
 - `CreditCardChargeVoided voidTransaction(String id, RequestOptions options)`<br>`POST /v1/quickbooks-desktop/credit-card-charges/{id}/void` (async, write): Void a credit card charge
 
@@ -109,6 +130,7 @@ Every method also has overloads without `RequestOptions` and, where the paramete
 - `CreditCardCreditDeleted delete(String id, RequestOptions options)`<br>`DELETE /v1/quickbooks-desktop/credit-card-credits/{id}` (async, write): Delete a credit card credit
 - `Pager<CreditCardCredit> list(CreditCardCreditListParams params, RequestOptions options)`<br>`GET /v1/quickbooks-desktop/credit-card-credits` (paginated, async): List credit card credits
 - `CreditCardCredit retrieve(String id, RequestOptions options)`<br>`GET /v1/quickbooks-desktop/credit-card-credits/{id}` (async): Retrieve a credit card credit
+- `CustomFieldValue setCustomField(String id, TransactionCustomFieldValueInput params, RequestOptions options)`<br>`POST /v1/quickbooks-desktop/credit-card-credits/{id}/custom-fields` (async, write): Set a custom field on a credit card credit
 - `CreditCardCredit update(String id, CreditCardCreditUpdateInput params, RequestOptions options)`<br>`POST /v1/quickbooks-desktop/credit-card-credits/{id}` (async, write): Update a credit card credit
 - `CreditCardCreditVoided voidTransaction(String id, RequestOptions options)`<br>`POST /v1/quickbooks-desktop/credit-card-credits/{id}/void` (async, write): Void a credit card credit
 
@@ -118,6 +140,7 @@ Every method also has overloads without `RequestOptions` and, where the paramete
 - `CreditCardRefundDeleted delete(String id, RequestOptions options)`<br>`DELETE /v1/quickbooks-desktop/credit-card-refunds/{id}` (async, write): Delete a credit card refund
 - `Pager<CreditCardRefund> list(CreditCardRefundListParams params, RequestOptions options)`<br>`GET /v1/quickbooks-desktop/credit-card-refunds` (paginated, async): List credit card refunds
 - `CreditCardRefund retrieve(String id, RequestOptions options)`<br>`GET /v1/quickbooks-desktop/credit-card-refunds/{id}` (async): Retrieve a credit card refund
+- `CustomFieldValue setCustomField(String id, TransactionCustomFieldValueInput params, RequestOptions options)`<br>`POST /v1/quickbooks-desktop/credit-card-refunds/{id}/custom-fields` (async, write): Set a custom field on a credit card refund
 - `CreditCardRefundVoided voidTransaction(String id, RequestOptions options)`<br>`POST /v1/quickbooks-desktop/credit-card-refunds/{id}/void` (async, write): Void a credit card refund
 
 ## `client.qbd().creditMemos()`
@@ -126,32 +149,53 @@ Every method also has overloads without `RequestOptions` and, where the paramete
 - `CreditMemoDeleted delete(String id, RequestOptions options)`<br>`DELETE /v1/quickbooks-desktop/credit-memos/{id}` (async, write): Delete a credit memo
 - `Pager<CreditMemo> list(CreditMemoListParams params, RequestOptions options)`<br>`GET /v1/quickbooks-desktop/credit-memos` (paginated, async): List credit memos
 - `CreditMemo retrieve(String id, RequestOptions options)`<br>`GET /v1/quickbooks-desktop/credit-memos/{id}` (async): Retrieve a credit memo
+- `CustomFieldValue setCustomField(String id, TransactionCustomFieldValueInput params, RequestOptions options)`<br>`POST /v1/quickbooks-desktop/credit-memos/{id}/custom-fields` (async, write): Set a custom field on a credit memo
 - `CreditMemo update(String id, CreditMemoUpdateInput params, RequestOptions options)`<br>`POST /v1/quickbooks-desktop/credit-memos/{id}` (async, write): Update a credit memo
 - `CreditMemoVoided voidTransaction(String id, RequestOptions options)`<br>`POST /v1/quickbooks-desktop/credit-memos/{id}/void` (async, write): Void a credit memo
 
 ## `client.qbd().currencies()`
 
 - `Currency create(CurrencyCreateInput params, RequestOptions options)`<br>`POST /v1/quickbooks-desktop/currencies` (async, write): Create a currency
+- `CurrencyDeleted delete(String id, CurrencyDeleteParams params, RequestOptions options)`<br>`DELETE /v1/quickbooks-desktop/currencies/{id}` (async, write): Delete a currency
 - `CurrencyList list(CurrencyListParams params, RequestOptions options)`<br>`GET /v1/quickbooks-desktop/currencies` (async): List currencies
 - `Currency retrieve(String id, RequestOptions options)`<br>`GET /v1/quickbooks-desktop/currencies/{id}` (async): Retrieve a currency
 - `Currency update(String id, CurrencyUpdateInput params, RequestOptions options)`<br>`POST /v1/quickbooks-desktop/currencies/{id}` (async, write): Update a currency
 
+## `client.qbd().customFieldDefinitions()`
+
+- `CustomFieldDefinition create(CustomFieldDefinitionCreateInput params, RequestOptions options)`<br>`POST /v1/quickbooks-desktop/custom-field-definitions` (async, write): Create a custom field definition
+- `DeletedCustomFieldDefinition delete(String name, CustomFieldDefinitionDeleteParams params, RequestOptions options)`<br>`DELETE /v1/quickbooks-desktop/custom-field-definitions/{name}` (async, write): Request deletion of a private custom field definition
+- `CustomFieldDefinitionList list(CustomFieldDefinitionListParams params, RequestOptions options)`<br>`GET /v1/quickbooks-desktop/custom-field-definitions` (async): List custom field definitions
+- `CustomFieldDefinition update(String name, CustomFieldDefinitionUpdateInput params, RequestOptions options)`<br>`POST /v1/quickbooks-desktop/custom-field-definitions/{name}` (async, write): Update a custom field definition
+
+## `client.qbd().customerMessages()`
+
+- `CustomerMessage create(CustomerMessageCreateInput params, RequestOptions options)`<br>`POST /v1/quickbooks-desktop/customer-messages` (async, write): Create a customer message
+- `CustomerMessageDeleted delete(String id, CustomerMessageDeleteParams params, RequestOptions options)`<br>`DELETE /v1/quickbooks-desktop/customer-messages/{id}` (async, write): Delete a customer message
+- `CustomerMessageList list(CustomerMessageListParams params, RequestOptions options)`<br>`GET /v1/quickbooks-desktop/customer-messages` (async): List customer messages
+- `CustomerMessage retrieve(String id, RequestOptions options)`<br>`GET /v1/quickbooks-desktop/customer-messages/{id}` (async): Retrieve a customer message
+
 ## `client.qbd().customerTypes()`
 
 - `CustomerType create(CustomerTypeCreateInput params, RequestOptions options)`<br>`POST /v1/quickbooks-desktop/customer-types` (async, write): Create a customer type
+- `CustomerTypeDeleted delete(String id, CustomerTypeDeleteParams params, RequestOptions options)`<br>`DELETE /v1/quickbooks-desktop/customer-types/{id}` (async, write): Delete a customer type
 - `CustomerTypeList list(CustomerTypeListParams params, RequestOptions options)`<br>`GET /v1/quickbooks-desktop/customer-types` (async): List customer types
 - `CustomerType retrieve(String id, RequestOptions options)`<br>`GET /v1/quickbooks-desktop/customer-types/{id}` (async): Retrieve a customer type
 
 ## `client.qbd().customers()`
 
 - `Customer create(CustomerCreateInput params, RequestOptions options)`<br>`POST /v1/quickbooks-desktop/customers` (async, write): Create a customer
+- `CustomerDeleted delete(String id, CustomerDeleteParams params, RequestOptions options)`<br>`DELETE /v1/quickbooks-desktop/customers/{id}` (async, write): Delete a customer
 - `Pager<Customer> list(CustomerListParams params, RequestOptions options)`<br>`GET /v1/quickbooks-desktop/customers` (paginated, async): List customers
+- `ListMerge merge(String id, CustomerMergeInput params, RequestOptions options)`<br>`POST /v1/quickbooks-desktop/customers/{id}/merge` (async, write): Merge a customer into another
 - `Customer retrieve(String id, RequestOptions options)`<br>`GET /v1/quickbooks-desktop/customers/{id}` (async): Retrieve a customer
+- `CustomFieldValue setCustomField(String id, CustomFieldValueInput params, RequestOptions options)`<br>`POST /v1/quickbooks-desktop/customers/{id}/custom-fields` (async, write): Set a custom field on a customer
 - `Customer update(String id, CustomerUpdateInput params, RequestOptions options)`<br>`POST /v1/quickbooks-desktop/customers/{id}` (async, write): Update a customer
 
 ## `client.qbd().dateDrivenTerms()`
 
 - `DateDrivenTerm create(DateDrivenTermCreateInput params, RequestOptions options)`<br>`POST /v1/quickbooks-desktop/date-driven-terms` (async, write): Create a date-driven term
+- `DateDrivenTermDeleted delete(String id, DateDrivenTermDeleteParams params, RequestOptions options)`<br>`DELETE /v1/quickbooks-desktop/date-driven-terms/{id}` (async, write): Delete a date-driven term
 - `DateDrivenTermList list(DateDrivenTermListParams params, RequestOptions options)`<br>`GET /v1/quickbooks-desktop/date-driven-terms` (async): List date-driven terms
 - `DateDrivenTerm retrieve(String id, RequestOptions options)`<br>`GET /v1/quickbooks-desktop/date-driven-terms/{id}` (async): Retrieve a date-driven term
 
@@ -169,22 +213,33 @@ Every method also has overloads without `RequestOptions` and, where the paramete
 - `DepositDeleted delete(String id, RequestOptions options)`<br>`DELETE /v1/quickbooks-desktop/deposits/{id}` (async, write): Delete a deposit
 - `Pager<Deposit> list(DepositListParams params, RequestOptions options)`<br>`GET /v1/quickbooks-desktop/deposits` (paginated, async): List deposits
 - `Deposit retrieve(String id, RequestOptions options)`<br>`GET /v1/quickbooks-desktop/deposits/{id}` (async): Retrieve a deposit
+- `CustomFieldValue setCustomField(String id, TransactionCustomFieldValueInput params, RequestOptions options)`<br>`POST /v1/quickbooks-desktop/deposits/{id}/custom-fields` (async, write): Set a custom field on a deposit
 - `Deposit update(String id, DepositUpdateInput params, RequestOptions options)`<br>`POST /v1/quickbooks-desktop/deposits/{id}` (async, write): Update a deposit
 - `DepositVoided voidTransaction(String id, RequestOptions options)`<br>`POST /v1/quickbooks-desktop/deposits/{id}/void` (async, write): Void a deposit
 
 ## `client.qbd().discountItems()`
 
 - `DiscountItem create(DiscountItemCreateInput params, RequestOptions options)`<br>`POST /v1/quickbooks-desktop/discount-items` (async, write): Create a discount item
+- `DiscountItemDeleted delete(String id, DiscountItemDeleteParams params, RequestOptions options)`<br>`DELETE /v1/quickbooks-desktop/discount-items/{id}` (async, write): Delete a discount item
 - `Pager<DiscountItem> list(DiscountItemListParams params, RequestOptions options)`<br>`GET /v1/quickbooks-desktop/discount-items` (paginated, async): List discount items
+- `ListMerge merge(String id, ListMergeInput params, RequestOptions options)`<br>`POST /v1/quickbooks-desktop/discount-items/{id}/merge` (async, write): Merge a discount item into another
 - `DiscountItem retrieve(String id, RequestOptions options)`<br>`GET /v1/quickbooks-desktop/discount-items/{id}` (async): Retrieve a discount item
+- `CustomFieldValue setCustomField(String id, CustomFieldValueInput params, RequestOptions options)`<br>`POST /v1/quickbooks-desktop/discount-items/{id}/custom-fields` (async, write): Set a custom field on a discount item
 - `DiscountItem update(String id, DiscountItemUpdateInput params, RequestOptions options)`<br>`POST /v1/quickbooks-desktop/discount-items/{id}` (async, write): Update a discount item
 
 ## `client.qbd().employees()`
 
 - `Employee create(EmployeeCreateInput params, RequestOptions options)`<br>`POST /v1/quickbooks-desktop/employees` (async, write): Create an employee
+- `EmployeeDeleted delete(String id, EmployeeDeleteParams params, RequestOptions options)`<br>`DELETE /v1/quickbooks-desktop/employees/{id}` (async, write): Delete an employee
 - `EmployeeList list(EmployeeListParams params, RequestOptions options)`<br>`GET /v1/quickbooks-desktop/employees` (async): List employees
 - `Employee retrieve(String id, RequestOptions options)`<br>`GET /v1/quickbooks-desktop/employees/{id}` (async): Retrieve an employee
+- `CustomFieldValue setCustomField(String id, CustomFieldValueInput params, RequestOptions options)`<br>`POST /v1/quickbooks-desktop/employees/{id}/custom-fields` (async, write): Set a custom field on an employee
 - `Employee update(String id, EmployeeUpdateInput params, RequestOptions options)`<br>`POST /v1/quickbooks-desktop/employees/{id}` (async, write): Update an employee
+
+## `client.qbd().entities()`
+
+- `Pager<Entity> list(EntityListParams params, RequestOptions options)`<br>`GET /v1/quickbooks-desktop/entities` (paginated, async): List entities
+- `Entity retrieve(String id, RequestOptions options)`<br>`GET /v1/quickbooks-desktop/entities/{id}` (async): Retrieve an entity
 
 ## `client.qbd().estimates()`
 
@@ -192,7 +247,17 @@ Every method also has overloads without `RequestOptions` and, where the paramete
 - `EstimateDeleted delete(String id, RequestOptions options)`<br>`DELETE /v1/quickbooks-desktop/estimates/{id}` (async, write): Delete an estimate
 - `Pager<Estimate> list(EstimateListParams params, RequestOptions options)`<br>`GET /v1/quickbooks-desktop/estimates` (paginated, async): List estimates
 - `Estimate retrieve(String id, RequestOptions options)`<br>`GET /v1/quickbooks-desktop/estimates/{id}` (async): Retrieve an estimate
+- `CustomFieldValue setCustomField(String id, TransactionCustomFieldValueInput params, RequestOptions options)`<br>`POST /v1/quickbooks-desktop/estimates/{id}/custom-fields` (async, write): Set a custom field on an estimate
 - `Estimate update(String id, EstimateUpdateInput params, RequestOptions options)`<br>`POST /v1/quickbooks-desktop/estimates/{id}` (async, write): Update an estimate
+
+## `client.qbd().fixedAssetItems()`
+
+- `FixedAssetItem create(FixedAssetItemCreateInput params, RequestOptions options)`<br>`POST /v1/quickbooks-desktop/fixed-asset-items` (async, write): Create a fixed asset item
+- `FixedAssetItemDeleted delete(String id, FixedAssetItemDeleteParams params, RequestOptions options)`<br>`DELETE /v1/quickbooks-desktop/fixed-asset-items/{id}` (async, write): Delete a fixed asset item
+- `Pager<FixedAssetItem> list(FixedAssetItemListParams params, RequestOptions options)`<br>`GET /v1/quickbooks-desktop/fixed-asset-items` (paginated, async): List fixed asset items
+- `FixedAssetItem retrieve(String id, RequestOptions options)`<br>`GET /v1/quickbooks-desktop/fixed-asset-items/{id}` (async): Retrieve a fixed asset item
+- `CustomFieldValue setCustomField(String id, CustomFieldValueInput params, RequestOptions options)`<br>`POST /v1/quickbooks-desktop/fixed-asset-items/{id}/custom-fields` (async, write): Set a custom field on a fixed asset item
+- `FixedAssetItem update(String id, FixedAssetItemUpdateInput params, RequestOptions options)`<br>`POST /v1/quickbooks-desktop/fixed-asset-items/{id}` (async, write): Update a fixed asset item
 
 ## `client.qbd().inventoryAdjustments()`
 
@@ -200,29 +265,45 @@ Every method also has overloads without `RequestOptions` and, where the paramete
 - `InventoryAdjustmentDeleted delete(String id, RequestOptions options)`<br>`DELETE /v1/quickbooks-desktop/inventory-adjustments/{id}` (async, write): Delete an inventory adjustment
 - `InventoryAdjustmentList list(InventoryAdjustmentListParams params, RequestOptions options)`<br>`GET /v1/quickbooks-desktop/inventory-adjustments` (async): List inventory adjustments
 - `InventoryAdjustment retrieve(String id, RequestOptions options)`<br>`GET /v1/quickbooks-desktop/inventory-adjustments/{id}` (async): Retrieve an inventory adjustment
+- `CustomFieldValue setCustomField(String id, TransactionCustomFieldValueInput params, RequestOptions options)`<br>`POST /v1/quickbooks-desktop/inventory-adjustments/{id}/custom-fields` (async, write): Set a custom field on an inventory adjustment
 - `InventoryAdjustment update(String id, InventoryAdjustmentUpdateInput params, RequestOptions options)`<br>`POST /v1/quickbooks-desktop/inventory-adjustments/{id}` (async, write): Update an inventory adjustment
 - `InventoryAdjustmentVoided voidTransaction(String id, RequestOptions options)`<br>`POST /v1/quickbooks-desktop/inventory-adjustments/{id}/void` (async, write): Void an inventory adjustment
 
 ## `client.qbd().inventoryAssemblyItems()`
 
+- `AssemblyBuildCapacity canBuild(String id, InventoryAssemblyItemCanBuildParams params, RequestOptions options)`<br>`GET /v1/quickbooks-desktop/inventory-assembly-items/{id}/can-build` (async): Check how many assemblies can be built
 - `InventoryAssemblyItem create(InventoryAssemblyItemCreateInput params, RequestOptions options)`<br>`POST /v1/quickbooks-desktop/inventory-assembly-items` (async, write): Create an inventory assembly item
+- `InventoryAssemblyItemDeleted delete(String id, InventoryAssemblyItemDeleteParams params, RequestOptions options)`<br>`DELETE /v1/quickbooks-desktop/inventory-assembly-items/{id}` (async, write): Delete an inventory assembly item
 - `Pager<InventoryAssemblyItem> list(InventoryAssemblyItemListParams params, RequestOptions options)`<br>`GET /v1/quickbooks-desktop/inventory-assembly-items` (paginated, async): List inventory assembly items
 - `InventoryAssemblyItem retrieve(String id, RequestOptions options)`<br>`GET /v1/quickbooks-desktop/inventory-assembly-items/{id}` (async): Retrieve an inventory assembly item
+- `CustomFieldValue setCustomField(String id, CustomFieldValueInput params, RequestOptions options)`<br>`POST /v1/quickbooks-desktop/inventory-assembly-items/{id}/custom-fields` (async, write): Set a custom field on an inventory assembly item
 - `InventoryAssemblyItem update(String id, InventoryAssemblyItemUpdateInput params, RequestOptions options)`<br>`POST /v1/quickbooks-desktop/inventory-assembly-items/{id}` (async, write): Update an inventory assembly item
 
 ## `client.qbd().inventoryItems()`
 
 - `InventoryItem create(InventoryItemCreateInput params, RequestOptions options)`<br>`POST /v1/quickbooks-desktop/inventory-items` (async, write): Create an inventory item
+- `InventoryItemDeleted delete(String id, InventoryItemDeleteParams params, RequestOptions options)`<br>`DELETE /v1/quickbooks-desktop/inventory-items/{id}` (async, write): Delete an inventory item
 - `Pager<InventoryItem> list(InventoryItemListParams params, RequestOptions options)`<br>`GET /v1/quickbooks-desktop/inventory-items` (paginated, async): List inventory items
+- `ListMerge merge(String id, ListMergeInput params, RequestOptions options)`<br>`POST /v1/quickbooks-desktop/inventory-items/{id}/merge` (async, write): Merge an inventory item into another
 - `InventoryItem retrieve(String id, RequestOptions options)`<br>`GET /v1/quickbooks-desktop/inventory-items/{id}` (async): Retrieve an inventory item
+- `CustomFieldValue setCustomField(String id, CustomFieldValueInput params, RequestOptions options)`<br>`POST /v1/quickbooks-desktop/inventory-items/{id}/custom-fields` (async, write): Set a custom field on an inventory item
 - `InventoryItem update(String id, InventoryItemUpdateInput params, RequestOptions options)`<br>`POST /v1/quickbooks-desktop/inventory-items/{id}` (async, write): Update an inventory item
 
 ## `client.qbd().inventorySites()`
 
 - `InventorySite create(InventorySiteCreateInput params, RequestOptions options)`<br>`POST /v1/quickbooks-desktop/inventory-sites` (async, write): Create an inventory site
+- `InventorySiteDeleted delete(String id, InventorySiteDeleteParams params, RequestOptions options)`<br>`DELETE /v1/quickbooks-desktop/inventory-sites/{id}` (async, write): Delete an inventory site
 - `InventorySiteList list(InventorySiteListParams params, RequestOptions options)`<br>`GET /v1/quickbooks-desktop/inventory-sites` (async): List inventory sites
 - `InventorySite retrieve(String id, RequestOptions options)`<br>`GET /v1/quickbooks-desktop/inventory-sites/{id}` (async): Retrieve an inventory site
 - `InventorySite update(String id, InventorySiteUpdateInput params, RequestOptions options)`<br>`POST /v1/quickbooks-desktop/inventory-sites/{id}` (async, write): Update an inventory site
+
+## `client.qbd().inventoryTransfers()`
+
+- `InventoryTransfer create(InventoryTransferCreateInput params, RequestOptions options)`<br>`POST /v1/quickbooks-desktop/inventory-transfers` (async, write): Create an inventory transfer
+- `InventoryTransferDeleted delete(String id, RequestOptions options)`<br>`DELETE /v1/quickbooks-desktop/inventory-transfers/{id}` (async, write): Delete an inventory transfer
+- `Pager<InventoryTransfer> list(InventoryTransferListParams params, RequestOptions options)`<br>`GET /v1/quickbooks-desktop/inventory-transfers` (paginated, async): List inventory transfers
+- `InventoryTransfer retrieve(String id, RequestOptions options)`<br>`GET /v1/quickbooks-desktop/inventory-transfers/{id}` (async): Retrieve an inventory transfer
+- `InventoryTransfer update(String id, InventoryTransferUpdateInput params, RequestOptions options)`<br>`POST /v1/quickbooks-desktop/inventory-transfers/{id}` (async, write): Update an inventory transfer
 
 ## `client.qbd().invoices()`
 
@@ -230,14 +311,18 @@ Every method also has overloads without `RequestOptions` and, where the paramete
 - `InvoiceDeleted delete(String id, RequestOptions options)`<br>`DELETE /v1/quickbooks-desktop/invoices/{id}` (async, write): Delete an invoice
 - `Pager<Invoice> list(InvoiceListParams params, RequestOptions options)`<br>`GET /v1/quickbooks-desktop/invoices` (paginated, async): List invoices
 - `Invoice retrieve(String id, RequestOptions options)`<br>`GET /v1/quickbooks-desktop/invoices/{id}` (async): Retrieve an invoice
+- `CustomFieldValue setCustomField(String id, TransactionCustomFieldValueInput params, RequestOptions options)`<br>`POST /v1/quickbooks-desktop/invoices/{id}/custom-fields` (async, write): Set a custom field on an invoice
 - `Invoice update(String id, InvoiceUpdateInput params, RequestOptions options)`<br>`POST /v1/quickbooks-desktop/invoices/{id}` (async, write): Update an invoice
 - `InvoiceVoided voidTransaction(String id, RequestOptions options)`<br>`POST /v1/quickbooks-desktop/invoices/{id}/void` (async, write): Void an invoice
 
 ## `client.qbd().itemGroups()`
 
 - `ItemGroup create(ItemGroupCreateInput params, RequestOptions options)`<br>`POST /v1/quickbooks-desktop/item-groups` (async, write): Create an item group
+- `ItemGroupDeleted delete(String id, ItemGroupDeleteParams params, RequestOptions options)`<br>`DELETE /v1/quickbooks-desktop/item-groups/{id}` (async, write): Delete an item group
 - `Pager<ItemGroup> list(ItemGroupListParams params, RequestOptions options)`<br>`GET /v1/quickbooks-desktop/item-groups` (paginated, async): List item groups
+- `ListMerge merge(String id, ListMergeInput params, RequestOptions options)`<br>`POST /v1/quickbooks-desktop/item-groups/{id}/merge` (async, write): Merge an item group into another
 - `ItemGroup retrieve(String id, RequestOptions options)`<br>`GET /v1/quickbooks-desktop/item-groups/{id}` (async): Retrieve an item group
+- `CustomFieldValue setCustomField(String id, CustomFieldValueInput params, RequestOptions options)`<br>`POST /v1/quickbooks-desktop/item-groups/{id}/custom-fields` (async, write): Set a custom field on an item group
 - `ItemGroup update(String id, ItemGroupUpdateInput params, RequestOptions options)`<br>`POST /v1/quickbooks-desktop/item-groups/{id}` (async, write): Update an item group
 
 ## `client.qbd().itemReceipts()`
@@ -246,6 +331,7 @@ Every method also has overloads without `RequestOptions` and, where the paramete
 - `ItemReceiptDeleted delete(String id, RequestOptions options)`<br>`DELETE /v1/quickbooks-desktop/item-receipts/{id}` (async, write): Delete an item receipt
 - `Pager<ItemReceipt> list(ItemReceiptListParams params, RequestOptions options)`<br>`GET /v1/quickbooks-desktop/item-receipts` (paginated, async): List item receipts
 - `ItemReceipt retrieve(String id, RequestOptions options)`<br>`GET /v1/quickbooks-desktop/item-receipts/{id}` (async): Retrieve an item receipt
+- `CustomFieldValue setCustomField(String id, TransactionCustomFieldValueInput params, RequestOptions options)`<br>`POST /v1/quickbooks-desktop/item-receipts/{id}/custom-fields` (async, write): Set a custom field on an item receipt
 - `ItemReceipt update(String id, ItemReceiptUpdateInput params, RequestOptions options)`<br>`POST /v1/quickbooks-desktop/item-receipts/{id}` (async, write): Update an item receipt
 - `ItemReceiptVoided voidTransaction(String id, RequestOptions options)`<br>`POST /v1/quickbooks-desktop/item-receipts/{id}/void` (async, write): Void an item receipt
 
@@ -254,39 +340,78 @@ Every method also has overloads without `RequestOptions` and, where the paramete
 - `Pager<ItemSite> list(ItemSiteListParams params, RequestOptions options)`<br>`GET /v1/quickbooks-desktop/item-sites` (paginated, async): List item sites
 - `ItemSite retrieve(String id, RequestOptions options)`<br>`GET /v1/quickbooks-desktop/item-sites/{id}` (async): Retrieve an item site
 
+## `client.qbd().items()`
+
+- `Pager<Item> list(ItemListParams params, RequestOptions options)`<br>`GET /v1/quickbooks-desktop/items` (paginated, async): List items
+- `Item retrieve(String id, RequestOptions options)`<br>`GET /v1/quickbooks-desktop/items/{id}` (async): Retrieve an item
+
+## `client.qbd().jobTypes()`
+
+- `JobType create(JobTypeCreateInput params, RequestOptions options)`<br>`POST /v1/quickbooks-desktop/job-types` (async, write): Create a job type
+- `JobTypeDeleted delete(String id, JobTypeDeleteParams params, RequestOptions options)`<br>`DELETE /v1/quickbooks-desktop/job-types/{id}` (async, write): Delete a job type
+- `JobTypeList list(JobTypeListParams params, RequestOptions options)`<br>`GET /v1/quickbooks-desktop/job-types` (async): List job types
+- `JobType retrieve(String id, RequestOptions options)`<br>`GET /v1/quickbooks-desktop/job-types/{id}` (async): Retrieve a job type
+
 ## `client.qbd().journalEntries()`
 
 - `JournalEntry create(JournalEntryCreateInput params, RequestOptions options)`<br>`POST /v1/quickbooks-desktop/journal-entries` (async, write): Create a journal entry
 - `JournalEntryDeleted delete(String id, RequestOptions options)`<br>`DELETE /v1/quickbooks-desktop/journal-entries/{id}` (async, write): Delete a journal entry
 - `Pager<JournalEntry> list(JournalEntryListParams params, RequestOptions options)`<br>`GET /v1/quickbooks-desktop/journal-entries` (paginated, async): List journal entries
 - `JournalEntry retrieve(String id, RequestOptions options)`<br>`GET /v1/quickbooks-desktop/journal-entries/{id}` (async): Retrieve a journal entry
+- `CustomFieldValue setCustomField(String id, TransactionCustomFieldValueInput params, RequestOptions options)`<br>`POST /v1/quickbooks-desktop/journal-entries/{id}/custom-fields` (async, write): Set a custom field on a journal entry
 - `JournalEntry update(String id, JournalEntryUpdateInput params, RequestOptions options)`<br>`POST /v1/quickbooks-desktop/journal-entries/{id}` (async, write): Update a journal entry
 - `JournalEntryVoided voidTransaction(String id, RequestOptions options)`<br>`POST /v1/quickbooks-desktop/journal-entries/{id}/void` (async, write): Void a journal entry
+
+## `client.qbd().leads()`
+
+- `Lead create(LeadCreateInput params, RequestOptions options)`<br>`POST /v1/quickbooks-desktop/leads` (async, write): Create a lead
+- `Pager<Lead> list(LeadListParams params, RequestOptions options)`<br>`GET /v1/quickbooks-desktop/leads` (paginated, async): List leads
+- `Lead retrieve(String id, RequestOptions options)`<br>`GET /v1/quickbooks-desktop/leads/{id}` (async): Retrieve a lead
+- `Lead update(String id, LeadUpdateInput params, RequestOptions options)`<br>`POST /v1/quickbooks-desktop/leads/{id}` (async, write): Update a lead
 
 ## `client.qbd().nonInventoryItems()`
 
 - `NonInventoryItem create(NonInventoryItemCreateInput params, RequestOptions options)`<br>`POST /v1/quickbooks-desktop/non-inventory-items` (async, write): Create a non-inventory item
+- `NonInventoryItemDeleted delete(String id, NonInventoryItemDeleteParams params, RequestOptions options)`<br>`DELETE /v1/quickbooks-desktop/non-inventory-items/{id}` (async, write): Delete a non-inventory item
 - `Pager<NonInventoryItem> list(NonInventoryItemListParams params, RequestOptions options)`<br>`GET /v1/quickbooks-desktop/non-inventory-items` (paginated, async): List non-inventory items
+- `ListMerge merge(String id, ListMergeInput params, RequestOptions options)`<br>`POST /v1/quickbooks-desktop/non-inventory-items/{id}/merge` (async, write): Merge a non-inventory item into another
 - `NonInventoryItem retrieve(String id, RequestOptions options)`<br>`GET /v1/quickbooks-desktop/non-inventory-items/{id}` (async): Retrieve a non-inventory item
+- `CustomFieldValue setCustomField(String id, CustomFieldValueInput params, RequestOptions options)`<br>`POST /v1/quickbooks-desktop/non-inventory-items/{id}/custom-fields` (async, write): Set a custom field on a non-inventory item
 - `NonInventoryItem update(String id, NonInventoryItemUpdateInput params, RequestOptions options)`<br>`POST /v1/quickbooks-desktop/non-inventory-items/{id}` (async, write): Update a non-inventory item
 
 ## `client.qbd().otherChargeItems()`
 
 - `OtherChargeItem create(OtherChargeItemCreateInput params, RequestOptions options)`<br>`POST /v1/quickbooks-desktop/other-charge-items` (async, write): Create an other charge item
+- `OtherChargeItemDeleted delete(String id, OtherChargeItemDeleteParams params, RequestOptions options)`<br>`DELETE /v1/quickbooks-desktop/other-charge-items/{id}` (async, write): Delete an other charge item
 - `Pager<OtherChargeItem> list(OtherChargeItemListParams params, RequestOptions options)`<br>`GET /v1/quickbooks-desktop/other-charge-items` (paginated, async): List other charge items
+- `ListMerge merge(String id, ListMergeInput params, RequestOptions options)`<br>`POST /v1/quickbooks-desktop/other-charge-items/{id}/merge` (async, write): Merge an other charge item into another
 - `OtherChargeItem retrieve(String id, RequestOptions options)`<br>`GET /v1/quickbooks-desktop/other-charge-items/{id}` (async): Retrieve an other charge item
+- `CustomFieldValue setCustomField(String id, CustomFieldValueInput params, RequestOptions options)`<br>`POST /v1/quickbooks-desktop/other-charge-items/{id}/custom-fields` (async, write): Set a custom field on an other charge item
 - `OtherChargeItem update(String id, OtherChargeItemUpdateInput params, RequestOptions options)`<br>`POST /v1/quickbooks-desktop/other-charge-items/{id}` (async, write): Update an other charge item
 
 ## `client.qbd().otherNames()`
 
 - `OtherName create(OtherNameCreateInput params, RequestOptions options)`<br>`POST /v1/quickbooks-desktop/other-names` (async, write): Create an other name
+- `OtherNameDeleted delete(String id, OtherNameDeleteParams params, RequestOptions options)`<br>`DELETE /v1/quickbooks-desktop/other-names/{id}` (async, write): Delete an other name
 - `OtherNameList list(OtherNameListParams params, RequestOptions options)`<br>`GET /v1/quickbooks-desktop/other-names` (async): List other names
 - `OtherName retrieve(String id, RequestOptions options)`<br>`GET /v1/quickbooks-desktop/other-names/{id}` (async): Retrieve an other name
+- `CustomFieldValue setCustomField(String id, CustomFieldValueInput params, RequestOptions options)`<br>`POST /v1/quickbooks-desktop/other-names/{id}/custom-fields` (async, write): Set a custom field on an other name
 - `OtherName update(String id, OtherNameUpdateInput params, RequestOptions options)`<br>`POST /v1/quickbooks-desktop/other-names/{id}` (async, write): Update an other name
+
+## `client.qbd().paymentItems()`
+
+- `PaymentItem create(PaymentItemCreateInput params, RequestOptions options)`<br>`POST /v1/quickbooks-desktop/payment-items` (async, write): Create a payment item
+- `PaymentItemDeleted delete(String id, PaymentItemDeleteParams params, RequestOptions options)`<br>`DELETE /v1/quickbooks-desktop/payment-items/{id}` (async, write): Delete a payment item
+- `Pager<PaymentItem> list(PaymentItemListParams params, RequestOptions options)`<br>`GET /v1/quickbooks-desktop/payment-items` (paginated, async): List payment items
+- `ListMerge merge(String id, ListMergeInput params, RequestOptions options)`<br>`POST /v1/quickbooks-desktop/payment-items/{id}/merge` (async, write): Merge a payment item into another
+- `PaymentItem retrieve(String id, RequestOptions options)`<br>`GET /v1/quickbooks-desktop/payment-items/{id}` (async): Retrieve a payment item
+- `CustomFieldValue setCustomField(String id, CustomFieldValueInput params, RequestOptions options)`<br>`POST /v1/quickbooks-desktop/payment-items/{id}/custom-fields` (async, write): Set a custom field on a payment item
+- `PaymentItem update(String id, PaymentItemUpdateInput params, RequestOptions options)`<br>`POST /v1/quickbooks-desktop/payment-items/{id}` (async, write): Update a payment item
 
 ## `client.qbd().paymentMethods()`
 
 - `PaymentMethod create(PaymentMethodCreateInput params, RequestOptions options)`<br>`POST /v1/quickbooks-desktop/payment-methods` (async, write): Create a payment method
+- `PaymentMethodDeleted delete(String id, PaymentMethodDeleteParams params, RequestOptions options)`<br>`DELETE /v1/quickbooks-desktop/payment-methods/{id}` (async, write): Delete a payment method
 - `PaymentMethodList list(PaymentMethodListParams params, RequestOptions options)`<br>`GET /v1/quickbooks-desktop/payment-methods` (async): List payment methods
 - `PaymentMethod retrieve(String id, RequestOptions options)`<br>`GET /v1/quickbooks-desktop/payment-methods/{id}` (async): Retrieve a payment method
 
@@ -294,11 +419,19 @@ Every method also has overloads without `RequestOptions` and, where the paramete
 
 - `PaymentsToDepositList list(RequestOptions options)`<br>`GET /v1/quickbooks-desktop/payments-to-deposit` (async): List payment to deposits
 
+## `client.qbd().payrollNonWageItems()`
+
+- `PayrollNonWageItemDeleted delete(String id, PayrollNonWageItemDeleteParams params, RequestOptions options)`<br>`DELETE /v1/quickbooks-desktop/payroll-non-wage-items/{id}` (async, write): Delete a payroll non-wage item
+- `PayrollNonWageItemList list(PayrollNonWageItemListParams params, RequestOptions options)`<br>`GET /v1/quickbooks-desktop/payroll-non-wage-items` (async): List payroll non-wage items
+- `PayrollNonWageItem retrieve(String id, RequestOptions options)`<br>`GET /v1/quickbooks-desktop/payroll-non-wage-items/{id}` (async): Retrieve a payroll non-wage item
+
 ## `client.qbd().payrollWageItems()`
 
 - `PayrollWageItem create(PayrollWageItemCreateInput params, RequestOptions options)`<br>`POST /v1/quickbooks-desktop/payroll-wage-items` (async, write): Create a payroll wage item
+- `PayrollWageItemDeleted delete(String id, PayrollWageItemDeleteParams params, RequestOptions options)`<br>`DELETE /v1/quickbooks-desktop/payroll-wage-items/{id}` (async, write): Delete a payroll wage item
 - `PayrollWageItemList list(PayrollWageItemListParams params, RequestOptions options)`<br>`GET /v1/quickbooks-desktop/payroll-wage-items` (async): List payroll wage items
 - `PayrollWageItem retrieve(String id, RequestOptions options)`<br>`GET /v1/quickbooks-desktop/payroll-wage-items/{id}` (async): Retrieve a payroll wage item
+- `PayrollWageItem update(String id, PayrollWageItemUpdateInput params, RequestOptions options)`<br>`POST /v1/quickbooks-desktop/payroll-wage-items/{id}` (async, write): Update a payroll wage item
 
 ## `client.qbd().preferences()`
 
@@ -307,6 +440,7 @@ Every method also has overloads without `RequestOptions` and, where the paramete
 ## `client.qbd().priceLevels()`
 
 - `PriceLevel create(PriceLevelCreateInput params, RequestOptions options)`<br>`POST /v1/quickbooks-desktop/price-levels` (async, write): Create a price level
+- `PriceLevelDeleted delete(String id, PriceLevelDeleteParams params, RequestOptions options)`<br>`DELETE /v1/quickbooks-desktop/price-levels/{id}` (async, write): Delete a price level
 - `PriceLevelList list(PriceLevelListParams params, RequestOptions options)`<br>`GET /v1/quickbooks-desktop/price-levels` (async): List price levels
 - `PriceLevel retrieve(String id, RequestOptions options)`<br>`GET /v1/quickbooks-desktop/price-levels/{id}` (async): Retrieve a price level
 - `PriceLevel update(String id, PriceLevelUpdateInput params, RequestOptions options)`<br>`POST /v1/quickbooks-desktop/price-levels/{id}` (async, write): Update a price level
@@ -317,6 +451,7 @@ Every method also has overloads without `RequestOptions` and, where the paramete
 - `PurchaseOrderDeleted delete(String id, RequestOptions options)`<br>`DELETE /v1/quickbooks-desktop/purchase-orders/{id}` (async, write): Delete a purchase order
 - `Pager<PurchaseOrder> list(PurchaseOrderListParams params, RequestOptions options)`<br>`GET /v1/quickbooks-desktop/purchase-orders` (paginated, async): List purchase orders
 - `PurchaseOrder retrieve(String id, RequestOptions options)`<br>`GET /v1/quickbooks-desktop/purchase-orders/{id}` (async): Retrieve a purchase order
+- `CustomFieldValue setCustomField(String id, TransactionCustomFieldValueInput params, RequestOptions options)`<br>`POST /v1/quickbooks-desktop/purchase-orders/{id}/custom-fields` (async, write): Set a custom field on a purchase order
 - `PurchaseOrder update(String id, PurchaseOrderUpdateInput params, RequestOptions options)`<br>`POST /v1/quickbooks-desktop/purchase-orders/{id}` (async, write): Update a purchase order
 
 ## `client.qbd().receivePayments()`
@@ -325,6 +460,7 @@ Every method also has overloads without `RequestOptions` and, where the paramete
 - `ReceivePaymentDeleted delete(String id, RequestOptions options)`<br>`DELETE /v1/quickbooks-desktop/receive-payments/{id}` (async, write): Delete a received payment
 - `Pager<ReceivePayment> list(ReceivePaymentListParams params, RequestOptions options)`<br>`GET /v1/quickbooks-desktop/receive-payments` (paginated, async): List received payments
 - `ReceivePayment retrieve(String id, RequestOptions options)`<br>`GET /v1/quickbooks-desktop/receive-payments/{id}` (async): Retrieve a received payment
+- `CustomFieldValue setCustomField(String id, TransactionCustomFieldValueInput params, RequestOptions options)`<br>`POST /v1/quickbooks-desktop/receive-payments/{id}/custom-fields` (async, write): Set a custom field on a received payment
 - `ReceivePayment update(String id, ReceivePaymentUpdateInput params, RequestOptions options)`<br>`POST /v1/quickbooks-desktop/receive-payments/{id}` (async, write): Update a received payment
 
 ## `client.qbd().reports()`
@@ -346,6 +482,7 @@ Every method also has overloads without `RequestOptions` and, where the paramete
 - `SalesOrderDeleted delete(String id, RequestOptions options)`<br>`DELETE /v1/quickbooks-desktop/sales-orders/{id}` (async, write): Delete a sales order
 - `Pager<SalesOrder> list(SalesOrderListParams params, RequestOptions options)`<br>`GET /v1/quickbooks-desktop/sales-orders` (paginated, async): List sales orders
 - `SalesOrder retrieve(String id, RequestOptions options)`<br>`GET /v1/quickbooks-desktop/sales-orders/{id}` (async): Retrieve a sales order
+- `CustomFieldValue setCustomField(String id, TransactionCustomFieldValueInput params, RequestOptions options)`<br>`POST /v1/quickbooks-desktop/sales-orders/{id}/custom-fields` (async, write): Set a custom field on a sales order
 - `SalesOrder update(String id, SalesOrderUpdateInput params, RequestOptions options)`<br>`POST /v1/quickbooks-desktop/sales-orders/{id}` (async, write): Update a sales order
 
 ## `client.qbd().salesReceipts()`
@@ -354,12 +491,14 @@ Every method also has overloads without `RequestOptions` and, where the paramete
 - `SalesReceiptDeleted delete(String id, RequestOptions options)`<br>`DELETE /v1/quickbooks-desktop/sales-receipts/{id}` (async, write): Delete a sales receipt
 - `Pager<SalesReceipt> list(SalesReceiptListParams params, RequestOptions options)`<br>`GET /v1/quickbooks-desktop/sales-receipts` (paginated, async): List sales receipts
 - `SalesReceipt retrieve(String id, RequestOptions options)`<br>`GET /v1/quickbooks-desktop/sales-receipts/{id}` (async): Retrieve a sales receipt
+- `CustomFieldValue setCustomField(String id, TransactionCustomFieldValueInput params, RequestOptions options)`<br>`POST /v1/quickbooks-desktop/sales-receipts/{id}/custom-fields` (async, write): Set a custom field on a sales receipt
 - `SalesReceipt update(String id, SalesReceiptUpdateInput params, RequestOptions options)`<br>`POST /v1/quickbooks-desktop/sales-receipts/{id}` (async, write): Update a sales receipt
 - `SalesReceiptVoided voidTransaction(String id, RequestOptions options)`<br>`POST /v1/quickbooks-desktop/sales-receipts/{id}/void` (async, write): Void a sales receipt
 
 ## `client.qbd().salesRepresentatives()`
 
 - `SalesRepresentative create(SalesRepresentativeCreateInput params, RequestOptions options)`<br>`POST /v1/quickbooks-desktop/sales-representatives` (async, write): Create a sales representative
+- `SalesRepresentativeDeleted delete(String id, SalesRepresentativeDeleteParams params, RequestOptions options)`<br>`DELETE /v1/quickbooks-desktop/sales-representatives/{id}` (async, write): Delete a sales representative
 - `SalesRepresentativeList list(SalesRepresentativeListParams params, RequestOptions options)`<br>`GET /v1/quickbooks-desktop/sales-representatives` (async): List sales representatives
 - `SalesRepresentative retrieve(String id, RequestOptions options)`<br>`GET /v1/quickbooks-desktop/sales-representatives/{id}` (async): Retrieve a sales representative
 - `SalesRepresentative update(String id, SalesRepresentativeUpdateInput params, RequestOptions options)`<br>`POST /v1/quickbooks-desktop/sales-representatives/{id}` (async, write): Update a sales representative
@@ -367,6 +506,7 @@ Every method also has overloads without `RequestOptions` and, where the paramete
 ## `client.qbd().salesTaxCodes()`
 
 - `SalesTaxCode create(SalesTaxCodeCreateInput params, RequestOptions options)`<br>`POST /v1/quickbooks-desktop/sales-tax-codes` (async, write): Create a sales tax code
+- `SalesTaxCodeDeleted delete(String id, SalesTaxCodeDeleteParams params, RequestOptions options)`<br>`DELETE /v1/quickbooks-desktop/sales-tax-codes/{id}` (async, write): Delete a sales tax code
 - `SalesTaxCodeList list(SalesTaxCodeListParams params, RequestOptions options)`<br>`GET /v1/quickbooks-desktop/sales-tax-codes` (async): List sales tax codes
 - `SalesTaxCode retrieve(String id, RequestOptions options)`<br>`GET /v1/quickbooks-desktop/sales-tax-codes/{id}` (async): Retrieve a sales tax code
 - `SalesTaxCode update(String id, SalesTaxCodeUpdateInput params, RequestOptions options)`<br>`POST /v1/quickbooks-desktop/sales-tax-codes/{id}` (async, write): Update a sales tax code
@@ -374,15 +514,21 @@ Every method also has overloads without `RequestOptions` and, where the paramete
 ## `client.qbd().salesTaxGroupItems()`
 
 - `SalesTaxGroupItem create(SalesTaxGroupItemCreateInput params, RequestOptions options)`<br>`POST /v1/quickbooks-desktop/sales-tax-group-items` (async, write): Create a sales tax group item
+- `SalesTaxGroupItemDeleted delete(String id, SalesTaxGroupItemDeleteParams params, RequestOptions options)`<br>`DELETE /v1/quickbooks-desktop/sales-tax-group-items/{id}` (async, write): Delete a sales tax group item
 - `Pager<SalesTaxGroupItem> list(SalesTaxGroupItemListParams params, RequestOptions options)`<br>`GET /v1/quickbooks-desktop/sales-tax-group-items` (paginated, async): List sales tax group items
+- `ListMerge merge(String id, ListMergeInput params, RequestOptions options)`<br>`POST /v1/quickbooks-desktop/sales-tax-group-items/{id}/merge` (async, write): Merge a sales tax group item into another
 - `SalesTaxGroupItem retrieve(String id, RequestOptions options)`<br>`GET /v1/quickbooks-desktop/sales-tax-group-items/{id}` (async): Retrieve a sales tax group item
+- `CustomFieldValue setCustomField(String id, CustomFieldValueInput params, RequestOptions options)`<br>`POST /v1/quickbooks-desktop/sales-tax-group-items/{id}/custom-fields` (async, write): Set a custom field on a sales tax group item
 - `SalesTaxGroupItem update(String id, SalesTaxGroupItemUpdateInput params, RequestOptions options)`<br>`POST /v1/quickbooks-desktop/sales-tax-group-items/{id}` (async, write): Update a sales tax group item
 
 ## `client.qbd().salesTaxItems()`
 
 - `SalesTaxItem create(SalesTaxItemCreateInput params, RequestOptions options)`<br>`POST /v1/quickbooks-desktop/sales-tax-items` (async, write): Create a sales tax item
+- `SalesTaxItemDeleted delete(String id, SalesTaxItemDeleteParams params, RequestOptions options)`<br>`DELETE /v1/quickbooks-desktop/sales-tax-items/{id}` (async, write): Delete a sales tax item
 - `Pager<SalesTaxItem> list(SalesTaxItemListParams params, RequestOptions options)`<br>`GET /v1/quickbooks-desktop/sales-tax-items` (paginated, async): List sales tax items
+- `ListMerge merge(String id, ListMergeInput params, RequestOptions options)`<br>`POST /v1/quickbooks-desktop/sales-tax-items/{id}/merge` (async, write): Merge a sales tax item into another
 - `SalesTaxItem retrieve(String id, RequestOptions options)`<br>`GET /v1/quickbooks-desktop/sales-tax-items/{id}` (async): Retrieve a sales tax item
+- `CustomFieldValue setCustomField(String id, CustomFieldValueInput params, RequestOptions options)`<br>`POST /v1/quickbooks-desktop/sales-tax-items/{id}/custom-fields` (async, write): Set a custom field on a sales tax item
 - `SalesTaxItem update(String id, SalesTaxItemUpdateInput params, RequestOptions options)`<br>`POST /v1/quickbooks-desktop/sales-tax-items/{id}` (async, write): Update a sales tax item
 
 ## `client.qbd().salesTaxPaymentChecks()`
@@ -391,32 +537,51 @@ Every method also has overloads without `RequestOptions` and, where the paramete
 - `SalesTaxPaymentCheckDeleted delete(String id, RequestOptions options)`<br>`DELETE /v1/quickbooks-desktop/sales-tax-payment-checks/{id}` (async, write): Delete a sales tax payment check
 - `Pager<SalesTaxPaymentCheck> list(SalesTaxPaymentCheckListParams params, RequestOptions options)`<br>`GET /v1/quickbooks-desktop/sales-tax-payment-checks` (paginated, async): List sales tax payment checks
 - `SalesTaxPaymentCheck retrieve(String id, RequestOptions options)`<br>`GET /v1/quickbooks-desktop/sales-tax-payment-checks/{id}` (async): Retrieve a sales tax payment check
+- `CustomFieldValue setCustomField(String id, TransactionCustomFieldValueInput params, RequestOptions options)`<br>`POST /v1/quickbooks-desktop/sales-tax-payment-checks/{id}/custom-fields` (async, write): Set a custom field on a sales tax payment check
 - `SalesTaxPaymentCheck update(String id, SalesTaxPaymentCheckUpdateInput params, RequestOptions options)`<br>`POST /v1/quickbooks-desktop/sales-tax-payment-checks/{id}` (async, write): Update a sales tax payment check
 
 ## `client.qbd().serviceItems()`
 
 - `ServiceItem create(ServiceItemCreateInput params, RequestOptions options)`<br>`POST /v1/quickbooks-desktop/service-items` (async, write): Create a service item
+- `ServiceItemDeleted delete(String id, ServiceItemDeleteParams params, RequestOptions options)`<br>`DELETE /v1/quickbooks-desktop/service-items/{id}` (async, write): Delete a service item
 - `Pager<ServiceItem> list(ServiceItemListParams params, RequestOptions options)`<br>`GET /v1/quickbooks-desktop/service-items` (paginated, async): List service items
+- `ListMerge merge(String id, ListMergeInput params, RequestOptions options)`<br>`POST /v1/quickbooks-desktop/service-items/{id}/merge` (async, write): Merge a service item into another
 - `ServiceItem retrieve(String id, RequestOptions options)`<br>`GET /v1/quickbooks-desktop/service-items/{id}` (async): Retrieve a service item
+- `CustomFieldValue setCustomField(String id, CustomFieldValueInput params, RequestOptions options)`<br>`POST /v1/quickbooks-desktop/service-items/{id}/custom-fields` (async, write): Set a custom field on a service item
 - `ServiceItem update(String id, ServiceItemUpdateInput params, RequestOptions options)`<br>`POST /v1/quickbooks-desktop/service-items/{id}` (async, write): Update a service item
 
 ## `client.qbd().shippingMethods()`
 
 - `ShippingMethod create(ShippingMethodCreateInput params, RequestOptions options)`<br>`POST /v1/quickbooks-desktop/shipping-methods` (async, write): Create a shipping method
+- `ShippingMethodDeleted delete(String id, ShippingMethodDeleteParams params, RequestOptions options)`<br>`DELETE /v1/quickbooks-desktop/shipping-methods/{id}` (async, write): Delete a shipping method
 - `ShippingMethodList list(ShippingMethodListParams params, RequestOptions options)`<br>`GET /v1/quickbooks-desktop/shipping-methods` (async): List shipping methods
 - `ShippingMethod retrieve(String id, RequestOptions options)`<br>`GET /v1/quickbooks-desktop/shipping-methods/{id}` (async): Retrieve a shipping method
 
 ## `client.qbd().standardTerms()`
 
 - `StandardTerm create(StandardTermCreateInput params, RequestOptions options)`<br>`POST /v1/quickbooks-desktop/standard-terms` (async, write): Create a standard term
+- `StandardTermDeleted delete(String id, StandardTermDeleteParams params, RequestOptions options)`<br>`DELETE /v1/quickbooks-desktop/standard-terms/{id}` (async, write): Delete a standard term
 - `StandardTermList list(StandardTermListParams params, RequestOptions options)`<br>`GET /v1/quickbooks-desktop/standard-terms` (async): List standard terms
 - `StandardTerm retrieve(String id, RequestOptions options)`<br>`GET /v1/quickbooks-desktop/standard-terms/{id}` (async): Retrieve a standard term
+
+## `client.qbd().statementCharges()`
+
+- `StatementCharge create(StatementChargeCreateInput params, RequestOptions options)`<br>`POST /v1/quickbooks-desktop/statement-charges` (async, write): Create a statement charge
+- `StatementChargeDeleted delete(String id, RequestOptions options)`<br>`DELETE /v1/quickbooks-desktop/statement-charges/{id}` (async, write): Delete a statement charge
+- `Pager<StatementCharge> list(StatementChargeListParams params, RequestOptions options)`<br>`GET /v1/quickbooks-desktop/statement-charges` (paginated, async): List statement charges
+- `StatementCharge retrieve(String id, RequestOptions options)`<br>`GET /v1/quickbooks-desktop/statement-charges/{id}` (async): Retrieve a statement charge
+- `CustomFieldValue setCustomField(String id, TransactionCustomFieldValueInput params, RequestOptions options)`<br>`POST /v1/quickbooks-desktop/statement-charges/{id}/custom-fields` (async, write): Set a custom field on a statement charge
+- `StatementCharge update(String id, StatementChargeUpdateInput params, RequestOptions options)`<br>`POST /v1/quickbooks-desktop/statement-charges/{id}` (async, write): Update a statement charge
+- `StatementChargeVoided voidTransaction(String id, RequestOptions options)`<br>`POST /v1/quickbooks-desktop/statement-charges/{id}/void` (async, write): Void a statement charge
 
 ## `client.qbd().subtotalItems()`
 
 - `SubtotalItem create(SubtotalItemCreateInput params, RequestOptions options)`<br>`POST /v1/quickbooks-desktop/subtotal-items` (async, write): Create a subtotal item
+- `SubtotalItemDeleted delete(String id, SubtotalItemDeleteParams params, RequestOptions options)`<br>`DELETE /v1/quickbooks-desktop/subtotal-items/{id}` (async, write): Delete a subtotal item
 - `Pager<SubtotalItem> list(SubtotalItemListParams params, RequestOptions options)`<br>`GET /v1/quickbooks-desktop/subtotal-items` (paginated, async): List subtotal items
+- `ListMerge merge(String id, ListMergeInput params, RequestOptions options)`<br>`POST /v1/quickbooks-desktop/subtotal-items/{id}/merge` (async, write): Merge a subtotal item into another
 - `SubtotalItem retrieve(String id, RequestOptions options)`<br>`GET /v1/quickbooks-desktop/subtotal-items/{id}` (async): Retrieve a subtotal item
+- `CustomFieldValue setCustomField(String id, CustomFieldValueInput params, RequestOptions options)`<br>`POST /v1/quickbooks-desktop/subtotal-items/{id}/custom-fields` (async, write): Set a custom field on a subtotal item
 - `SubtotalItem update(String id, SubtotalItemUpdateInput params, RequestOptions options)`<br>`POST /v1/quickbooks-desktop/subtotal-items/{id}` (async, write): Update a subtotal item
 
 ## `client.qbd().templates()`
@@ -431,10 +596,19 @@ Every method also has overloads without `RequestOptions` and, where the paramete
 - `TimeTrackingActivity retrieve(String id, RequestOptions options)`<br>`GET /v1/quickbooks-desktop/time-tracking-activities/{id}` (async): Retrieve a time tracking activity
 - `TimeTrackingActivity update(String id, TimeTrackingActivityUpdateInput params, RequestOptions options)`<br>`POST /v1/quickbooks-desktop/time-tracking-activities/{id}` (async, write): Update a time tracking activity
 
+## `client.qbd().toDos()`
+
+- `ToDo create(ToDoCreateInput params, RequestOptions options)`<br>`POST /v1/quickbooks-desktop/to-dos` (async, write): Create a to-do
+- `ToDoDeleted delete(String id, ToDoDeleteParams params, RequestOptions options)`<br>`DELETE /v1/quickbooks-desktop/to-dos/{id}` (async, write): Delete a to-do
+- `ToDoList list(ToDoListParams params, RequestOptions options)`<br>`GET /v1/quickbooks-desktop/to-dos` (async): List to-dos
+- `ToDo retrieve(String id, RequestOptions options)`<br>`GET /v1/quickbooks-desktop/to-dos/{id}` (async): Retrieve a to-do
+- `ToDo update(String id, ToDoUpdateInput params, RequestOptions options)`<br>`POST /v1/quickbooks-desktop/to-dos/{id}` (async, write): Update a to-do
+
 ## `client.qbd().transactions()`
 
 - `Pager<Transaction> list(TransactionListParams params, RequestOptions options)`<br>`GET /v1/quickbooks-desktop/transactions` (paginated, async): List transactions
 - `Transaction retrieve(String id, RequestOptions options)`<br>`GET /v1/quickbooks-desktop/transactions/{id}` (async): Retrieve a transaction
+- `ClearedStatus updateClearedStatus(String id, ClearedStatusUpdateInput params, RequestOptions options)`<br>`POST /v1/quickbooks-desktop/transactions/{id}/cleared-status` (async, write): Update the cleared status of a transaction
 
 ## `client.qbd().transfers()`
 
@@ -446,8 +620,24 @@ Every method also has overloads without `RequestOptions` and, where the paramete
 ## `client.qbd().unitOfMeasureSets()`
 
 - `UnitOfMeasureSet create(UnitOfMeasureSetCreateInput params, RequestOptions options)`<br>`POST /v1/quickbooks-desktop/unit-of-measure-sets` (async, write): Create an unit of measure set
+- `UnitOfMeasureSetDeleted delete(String id, UnitOfMeasureSetDeleteParams params, RequestOptions options)`<br>`DELETE /v1/quickbooks-desktop/unit-of-measure-sets/{id}` (async, write): Delete an unit of measure set
 - `UnitOfMeasureSetList list(UnitOfMeasureSetListParams params, RequestOptions options)`<br>`GET /v1/quickbooks-desktop/unit-of-measure-sets` (async): List unit of measure sets
 - `UnitOfMeasureSet retrieve(String id, RequestOptions options)`<br>`GET /v1/quickbooks-desktop/unit-of-measure-sets/{id}` (async): Retrieve an unit of measure set
+
+## `client.qbd().vehicleMileage()`
+
+- `VehicleMileage create(VehicleMileageCreateInput params, RequestOptions options)`<br>`POST /v1/quickbooks-desktop/vehicle-mileage` (async, write): Create a vehicle mileage entry
+- `VehicleMileageDeleted delete(String id, RequestOptions options)`<br>`DELETE /v1/quickbooks-desktop/vehicle-mileage/{id}` (async, write): Delete a vehicle mileage entry
+- `Pager<VehicleMileage> list(VehicleMileageListParams params, RequestOptions options)`<br>`GET /v1/quickbooks-desktop/vehicle-mileage` (paginated, async): List vehicle mileage entries
+- `VehicleMileage retrieve(String id, RequestOptions options)`<br>`GET /v1/quickbooks-desktop/vehicle-mileage/{id}` (async): Retrieve a vehicle mileage entry
+
+## `client.qbd().vehicles()`
+
+- `Vehicle create(VehicleCreateInput params, RequestOptions options)`<br>`POST /v1/quickbooks-desktop/vehicles` (async, write): Create a vehicle
+- `VehicleDeleted delete(String id, VehicleDeleteParams params, RequestOptions options)`<br>`DELETE /v1/quickbooks-desktop/vehicles/{id}` (async, write): Delete a vehicle
+- `VehicleList list(VehicleListParams params, RequestOptions options)`<br>`GET /v1/quickbooks-desktop/vehicles` (async): List vehicles
+- `Vehicle retrieve(String id, RequestOptions options)`<br>`GET /v1/quickbooks-desktop/vehicles/{id}` (async): Retrieve a vehicle
+- `Vehicle update(String id, VehicleUpdateInput params, RequestOptions options)`<br>`POST /v1/quickbooks-desktop/vehicles/{id}` (async, write): Update a vehicle
 
 ## `client.qbd().vendorCredits()`
 
@@ -455,15 +645,34 @@ Every method also has overloads without `RequestOptions` and, where the paramete
 - `VendorCreditDeleted delete(String id, RequestOptions options)`<br>`DELETE /v1/quickbooks-desktop/vendor-credits/{id}` (async, write): Delete a vendor credit
 - `Pager<VendorCredit> list(VendorCreditListParams params, RequestOptions options)`<br>`GET /v1/quickbooks-desktop/vendor-credits` (paginated, async): List vendor credits
 - `VendorCredit retrieve(String id, RequestOptions options)`<br>`GET /v1/quickbooks-desktop/vendor-credits/{id}` (async): Retrieve a vendor credit
+- `CustomFieldValue setCustomField(String id, TransactionCustomFieldValueInput params, RequestOptions options)`<br>`POST /v1/quickbooks-desktop/vendor-credits/{id}/custom-fields` (async, write): Set a custom field on a vendor credit
 - `VendorCredit update(String id, VendorCreditUpdateInput params, RequestOptions options)`<br>`POST /v1/quickbooks-desktop/vendor-credits/{id}` (async, write): Update a vendor credit
 - `VendorCreditVoided voidTransaction(String id, RequestOptions options)`<br>`POST /v1/quickbooks-desktop/vendor-credits/{id}/void` (async, write): Void a vendor credit
+
+## `client.qbd().vendorTypes()`
+
+- `VendorType create(VendorTypeCreateInput params, RequestOptions options)`<br>`POST /v1/quickbooks-desktop/vendor-types` (async, write): Create a vendor type
+- `VendorTypeDeleted delete(String id, VendorTypeDeleteParams params, RequestOptions options)`<br>`DELETE /v1/quickbooks-desktop/vendor-types/{id}` (async, write): Delete a vendor type
+- `VendorTypeList list(VendorTypeListParams params, RequestOptions options)`<br>`GET /v1/quickbooks-desktop/vendor-types` (async): List vendor types
+- `VendorType retrieve(String id, RequestOptions options)`<br>`GET /v1/quickbooks-desktop/vendor-types/{id}` (async): Retrieve a vendor type
 
 ## `client.qbd().vendors()`
 
 - `Vendor create(VendorCreateInput params, RequestOptions options)`<br>`POST /v1/quickbooks-desktop/vendors` (async, write): Create a vendor
+- `VendorDeleted delete(String id, VendorDeleteParams params, RequestOptions options)`<br>`DELETE /v1/quickbooks-desktop/vendors/{id}` (async, write): Delete a vendor
 - `Pager<Vendor> list(VendorListParams params, RequestOptions options)`<br>`GET /v1/quickbooks-desktop/vendors` (paginated, async): List vendors
+- `ListMerge merge(String id, ListMergeInput params, RequestOptions options)`<br>`POST /v1/quickbooks-desktop/vendors/{id}/merge` (async, write): Merge a vendor into another
 - `Vendor retrieve(String id, RequestOptions options)`<br>`GET /v1/quickbooks-desktop/vendors/{id}` (async): Retrieve a vendor
+- `CustomFieldValue setCustomField(String id, CustomFieldValueInput params, RequestOptions options)`<br>`POST /v1/quickbooks-desktop/vendors/{id}/custom-fields` (async, write): Set a custom field on a vendor
 - `Vendor update(String id, VendorUpdateInput params, RequestOptions options)`<br>`POST /v1/quickbooks-desktop/vendors/{id}` (async, write): Update a vendor
+
+## `client.qbd().workersCompCodes()`
+
+- `WorkersCompCode create(WorkersCompCodeCreateInput params, RequestOptions options)`<br>`POST /v1/quickbooks-desktop/workers-comp-codes` (async, write): Create a workers' compensation code
+- `WorkersCompCodeDeleted delete(String id, WorkersCompCodeDeleteParams params, RequestOptions options)`<br>`DELETE /v1/quickbooks-desktop/workers-comp-codes/{id}` (async, write): Delete a workers' compensation code
+- `WorkersCompCodeList list(WorkersCompCodeListParams params, RequestOptions options)`<br>`GET /v1/quickbooks-desktop/workers-comp-codes` (async): List workers' compensation codes
+- `WorkersCompCode retrieve(String id, RequestOptions options)`<br>`GET /v1/quickbooks-desktop/workers-comp-codes/{id}` (async): Retrieve a workers' compensation code
+- `WorkersCompCode update(String id, WorkersCompCodeUpdateInput params, RequestOptions options)`<br>`POST /v1/quickbooks-desktop/workers-comp-codes/{id}` (async, write): Update a workers' compensation code
 
 ## `client.requests()`
 
