@@ -30,6 +30,8 @@ import com.desktopaccountingapi.quickbooksdesktop.errors.PermissionException;
 import com.desktopaccountingapi.quickbooksdesktop.errors.RateLimitException;
 import com.desktopaccountingapi.quickbooksdesktop.errors.RequestPendingException;
 import com.desktopaccountingapi.quickbooksdesktop.errors.WebhookVerificationException;
+import com.desktopaccountingapi.quickbooksdesktop.models.Batch;
+import com.desktopaccountingapi.quickbooksdesktop.models.BatchRequestInput;
 import com.desktopaccountingapi.quickbooksdesktop.models.PassthroughInput;
 import com.desktopaccountingapi.quickbooksdesktop.webhooks.WebhookEvent;
 import com.desktopaccountingapi.quickbooksdesktop.webhooks.WebhookVerifier;
@@ -323,7 +325,32 @@ class ConformanceTest {
         if (c == LocalDate.class) return LocalDate.parse((String) v);
         if (c == OffsetDateTime.class) return OffsetDateTime.parse((String) v);
         if (InputObject.class.isAssignableFrom(c)) return build(c, map(v));
+        if (c == BatchRequestInput.class) return buildBatchMember(map(v));
         throw new IllegalArgumentException("cannot convert fixture value to " + c);
+    }
+
+    /** Same rule as the generator's type names (packages/sdk-generator/src/spec.ts singular). */
+    private static String singular(String resource) {
+        if (resource.endsWith("ies")) return resource.substring(0, resource.length() - 3) + "y";
+        if (resource.matches(".*(?:ss|x|ch|sh)es$")) return resource.substring(0, resource.length() - 2);
+        if (resource.endsWith("s") && !resource.endsWith("ss")) return resource.substring(0, resource.length() - 1);
+        return resource;
+    }
+
+    private static String pascal(String s) {
+        return s.isEmpty() ? s : Character.toUpperCase(s.charAt(0)) + s.substring(1);
+    }
+
+    /** A typed batch member: the class of its operationId, which sets operationId itself. */
+    private static Object buildBatchMember(Map<String, Object> value) throws Exception {
+        String op = (String) value.get("operationId");
+        String[] parts = op.split("\\.");
+        Class<?> cls = Class.forName(BatchRequestInput.class.getPackage().getName() + ".Batch" + pascal(singular(parts[1])) + pascal(parts[2]) + "Input");
+        Map<String, Object> rest = new LinkedHashMap<>(value);
+        rest.remove("operationId");
+        BatchRequestInput member = (BatchRequestInput) build(cls, rest);
+        assertEquals(op, member.operationId(), "batch member operationId");
+        return member;
     }
 
     // ------------------------------------------------------------------ outcome checks
@@ -336,6 +363,13 @@ class ConformanceTest {
     private static Object at(Object json, String dotted) {
         Object cur = json;
         for (String part : dotted.split("\\.")) {
+            if (cur instanceof List && part.matches("[0-9]+")) {
+                List<Object> l = list(cur);
+                int i = Integer.parseInt(part);
+                if (i >= l.size()) return Missing.INSTANCE;
+                cur = l.get(i);
+                continue;
+            }
             if (!(cur instanceof Map)) return Missing.INSTANCE;
             Map<String, Object> m = map(cur);
             if (!m.containsKey(part)) return Missing.INSTANCE;
@@ -389,6 +423,11 @@ class ConformanceTest {
         if (expected.containsKey("variant")) {
             assertNotNull(out.result, name + ": no result");
             assertEquals(expected.get("variant"), out.result.getClass().getSimpleName(), name + " variant");
+        }
+        if (expected.containsKey("resultVariants")) {
+            assertTrue(out.result instanceof Batch, name + ": expected a Batch result");
+            List<Object> classes = ((Batch) out.result).results().stream().map(r -> (Object) r.getClass().getSimpleName()).collect(Collectors.toList());
+            expectJson(name + " resultVariants", expected.get("resultVariants"), classes);
         }
         if (expected.containsKey("items")) expectJson(name + " items", expected.get("items"), ids(out.items));
         if (expected.containsKey("itemVariants")) {

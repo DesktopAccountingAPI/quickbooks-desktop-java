@@ -2,13 +2,21 @@
 
 # API reference (Java)
 
-Every resource method of `DesktopAccountingApiClient`, generated from the API contract (OpenAPI 3.1.0, API version 1.0.0, sha256 `45acc3e65d06`). Models are in `com.desktopaccountingapi.quickbooksdesktop.models`; services in `com.desktopaccountingapi.quickbooksdesktop.services`.
+Every resource method of `DesktopAccountingApiClient`, generated from the API contract (OpenAPI 3.1.0, API version 1.0.0, sha256 `f4cd9b5c733e`). Models are in `com.desktopaccountingapi.quickbooksdesktop.models`; services in `com.desktopaccountingapi.quickbooksdesktop.services`.
 
 Every method also has overloads without `RequestOptions` and, where the parameters are optional, without the parameter object. Non-list methods have a `...WithResponse(...)` variant returning `ApiResponse<T>`. Methods marked *async* are also available through `enqueue()` and return `RequestHandle<T>`.
 
 ## `client.authSessions()`
 
 - `AuthSession create(AuthSessionCreateInput params, RequestOptions options)`<br>`POST /v1/auth-sessions` (write): Create an auth session
+
+## `client.changeFeedSubscriptions()`
+
+- `ChangeFeedSubscription create(ChangeFeedSubscriptionCreateInput params, RequestOptions options)`<br>`POST /v1/change-feed-subscriptions` (write): Create a change feed subscription
+- `ChangeFeedSubscriptionDeleted delete(String id, RequestOptions options)`<br>`DELETE /v1/change-feed-subscriptions/{id}` (write): Delete a change feed subscription
+- `Pager<ChangeFeedSubscription> list(ChangeFeedSubscriptionListParams params, RequestOptions options)`<br>`GET /v1/change-feed-subscriptions` (paginated): List change feed subscriptions
+- `ChangeFeedSubscription retrieve(String id, RequestOptions options)`<br>`GET /v1/change-feed-subscriptions/{id}`: Retrieve a change feed subscription
+- `ChangeFeedSubscription update(String id, ChangeFeedSubscriptionUpdateInput params, RequestOptions options)`<br>`POST /v1/change-feed-subscriptions/{id}` (write): Update a change feed subscription
 
 ## `client.endUsers()`
 
@@ -26,6 +34,7 @@ Every method also has overloads without `RequestOptions` and, where the paramete
 
 ## `client.qbd()`
 
+- `Batch batch(BatchInput params, RequestOptions options)`<br>`POST /v1/quickbooks-desktop/batch` (async, write): Run several operations in one round trip
 - `HealthCheck healthCheck(RequestOptions options)`<br>`GET /v1/quickbooks-desktop/health-check` (async): Check the QuickBooks Desktop connection
 
 ## `client.qbd().accountTaxLines()`

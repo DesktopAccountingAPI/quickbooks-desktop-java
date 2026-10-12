@@ -23,6 +23,8 @@ public final class WebhookEventType {
     public static final String CONNECTION_STATUS_CHANGED = "connection.status_changed";
     /** The marker that identifies the connection's company file was created, restored or adopted. */
     public static final String CONNECTION_COMPANY_FILE_REMARKED = "connection.company_file_remarked";
+    /** Opt-in change feed: records of a watched resource changed or were deleted (IDs only). */
+    public static final String DATA_CHANGED = "data.changed";
     /** Test event sent from the dashboard or {@code POST /v1/webhook-endpoints/{id}/test}. */
     public static final String WEBHOOK_TEST = "webhook.test";
 }
