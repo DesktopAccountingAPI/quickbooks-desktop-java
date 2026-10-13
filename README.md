@@ -2,7 +2,7 @@
 
 The Java client for [Desktop Accounting API](https://www.desktopaccountingapi.com/), a REST API for QuickBooks Desktop and QuickBooks Enterprise. Your server makes typed calls such as `client.qbd().invoices().create(...)`, and Desktop Accounting API delivers them to your customer's company file through the QuickBooks Web Connector.
 
-- Covers all 439 operations of API 1.0.0: QuickBooks objects and reports (`client.qbd()`), end users, auth sessions, request tracking, qbXML passthrough and webhook verification.
+- Covers all 438 operations of API 1.0.0: QuickBooks objects and reports (`client.qbd()`), end users, auth sessions, request tracking, qbXML passthrough and webhook verification.
 - Immutable models, fluent inputs, `Iterable` and `Stream` pagination and unchecked typed exceptions for every error type.
 - Amounts are `BigDecimal`, sent with their scale preserved.
 - Every write carries an idempotency key, retries happen only where they cannot duplicate data, and an expired QuickBooks cursor never restarts a list silently.
@@ -12,7 +12,7 @@ The Java client for [Desktop Accounting API](https://www.desktopaccountingapi.co
 
 ## Install
 
-The artifact is `com.desktopaccountingapi:quickbooks-desktop` on [Maven Central](https://central.sonatype.com/artifact/com.desktopaccountingapi/quickbooks-desktop). The current version is **0.7.0**.
+The artifact is `com.desktopaccountingapi:quickbooks-desktop` on [Maven Central](https://central.sonatype.com/artifact/com.desktopaccountingapi/quickbooks-desktop). The current version is **0.8.0**.
 
 Maven:
 
@@ -20,20 +20,20 @@ Maven:
 <dependency>
   <groupId>com.desktopaccountingapi</groupId>
   <artifactId>quickbooks-desktop</artifactId>
-  <version>0.7.0</version>
+  <version>0.8.0</version>
 </dependency>
 ```
 
 Gradle (Kotlin DSL):
 
 ```kotlin skip
-implementation("com.desktopaccountingapi:quickbooks-desktop:0.7.0")
+implementation("com.desktopaccountingapi:quickbooks-desktop:0.8.0")
 ```
 
 Gradle (Groovy DSL):
 
 ```groovy skip
-implementation 'com.desktopaccountingapi:quickbooks-desktop:0.7.0'
+implementation 'com.desktopaccountingapi:quickbooks-desktop:0.8.0'
 ```
 
 ## Requirements
@@ -328,6 +328,16 @@ try {
 
 Lists without an iterator in QuickBooks (accounts, classes, terms and other small lists) return their list object directly, for example `AccountList` with `data()`. The [pagination guide](https://www.desktopaccountingapi.com/docs/guides/pagination/) explains cursor lifetimes.
 
+### Required arguments and confirmations
+
+- Every input with required fields has a constructor that takes them. A required field you leave unset throws `DaapiException` naming it when the request is sent, before anything is sent. The SDK does not validate values itself (lengths, formats, combinations of filters): the API checks every request and answers `400 INVALID_PARAMETER`, naming the parameter, before anything reaches QuickBooks.
+- Destructive operations take the confirmation in the constructor, so it cannot be forgotten: `new CustomerDeleteParams(Confirm.YES)`, `new ListMergeInput(revisionNumber, mergeIntoId, mergeIntoRevisionNumber, Confirm.YES)`.
+- Enums are classes with a constant per known value (`LeadStatus.HOT`). A value added after this SDK version reads without failing: `of(String)` keeps it, `isKnown()` is false and `known()` is `UNRECOGNIZED`, so `switch (status.known())` can be exhaustive. The SDK targets Java 11, so unions are plain interfaces, not sealed ones.
+- Transaction deletes and voids take no confirmation, as in Conductor. Deleting a list record, merging two records and deleting a custom field definition do, because they cannot be undone.
+- A list-record delete answers `deleted: true` only when QuickBooks removed the record. QuickBooks Desktop can accept the delete and keep the record inactive: then `deleted` is false and `deactivated` is true.
+- Quantities (`quantityCanBuild`, `totalMiles`, line quantities) can have decimals: QuickBooks stores them as decimal quantities, and units of measure allow fractions.
+- `CursorExpiredException` extends `InvalidRequestException`, because the API classifies `CURSOR_EXPIRED` as `INVALID_REQUEST_ERROR`. Catch it first when you handle the two differently; `reason()` is a `CursorExpiredReason`.
+
 ## Errors
 
 Every exception extends `DaapiException` (unchecked).
@@ -473,7 +483,7 @@ try {
     }
     endUser.qbd().invoices().retrieve("7-1700000000");
 } catch (ApiException e) {
-    if (e.status() != null && e.status() == 404) {
+    if (e.status() == 404) {
         System.out.println("Not found: " + e.code() + " (request " + e.requestId() + ")");
     } else {
         showToEndUser(e.userFacingMessage() != null ? e.userFacingMessage() : e.getMessage());
@@ -490,7 +500,7 @@ What changes beyond names: every write carries an `Idempotency-Key`, only safe f
 - The Java, Node.js, Python and .NET SDKs and the [MCP server](https://github.com/DesktopAccountingAPI/quickbooks-desktop-mcp) are released together with the same version number, generated from the same API contract.
 - Every release is listed in [CHANGELOG.md](CHANGELOG.md) and tagged `v<version>` on GitHub.
 - The API is versioned in its path (`/v1`). Within `v1` the API only adds operations, fields, enum values and error codes, which do not break existing code.
-- `.daapi-sdk.json` records the contract's SHA-256 (`f4cd9b5c733e...` for this release), and `SdkInfo.VERSION`, `SdkInfo.API_VERSION` and `SdkInfo.CONTRACT_SHA256` expose the same at runtime.
+- `.daapi-sdk.json` records the contract's SHA-256 (`149fc7b0599d...` for this release), and `SdkInfo.VERSION`, `SdkInfo.API_VERSION` and `SdkInfo.CONTRACT_SHA256` expose the same at runtime.
 
 ## Support
 
@@ -507,7 +517,7 @@ mise install
 mise run check   # build with -Xlint:all -Werror for Java 11, unit tests, conformance suite, javadoc, examples, README samples, Central bundle dry run
 ```
 
-To build from source, clone the repository and run `mvn -B install -DskipTests`; that puts `com.desktopaccountingapi:quickbooks-desktop:0.7.0` into your local Maven repository. Code under `src/main/java/com/desktopaccountingapi/quickbooksdesktop/{models,services}`, `DesktopAccountingApiClient.java` and this README are generated; `mise run check` compiles every Java sample in this README with `-Xlint:all -Werror` and runs the quickstart against the conformance mock server. See [CONTRIBUTING.md](CONTRIBUTING.md).
+To build from source, clone the repository and run `mvn -B install -DskipTests`; that puts `com.desktopaccountingapi:quickbooks-desktop:0.8.0` into your local Maven repository. Code under `src/main/java/com/desktopaccountingapi/quickbooksdesktop/{models,services}`, `DesktopAccountingApiClient.java` and this README are generated; `mise run check` compiles every Java sample in this README with `-Xlint:all -Werror` and runs the quickstart against the conformance mock server. See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## License
 

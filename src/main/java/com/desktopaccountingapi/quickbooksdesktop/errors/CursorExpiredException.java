@@ -12,6 +12,8 @@ package com.desktopaccountingapi.quickbooksdesktop.errors;
  * keeps the {@code updatedAfter} watermark of its previous completed sync until the whole traversal
  * finishes (pagination guide, "Recovering from CURSOR_EXPIRED").
  */
+// It extends InvalidRequestException because the API classifies CURSOR_EXPIRED as INVALID_REQUEST_ERROR
+// (exception classes follow error.type), although its status is 410: catch it first to tell them apart.
 public class CursorExpiredException extends InvalidRequestException {
     private static final long serialVersionUID = 1L;
     private final int itemsYielded;
@@ -106,13 +108,12 @@ public class CursorExpiredException extends InvalidRequestException {
     }
 
     /**
-     * Why the cursor expired ({@code details.reason}): {@code idle_timeout}, {@code session_ended},
-     * {@code quickbooks_restarted} or {@code evicted}.
+     * Why the cursor expired ({@code details.reason}).
      *
-     * @return the reason, or null
+     * @return the reason, or null when the API sent none
      */
-    public String reason() {
+    public CursorExpiredReason reason() {
         Object r = details().get("reason");
-        return r instanceof String ? (String) r : null;
+        return r instanceof String ? CursorExpiredReason.of((String) r) : null;
     }
 }

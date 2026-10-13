@@ -109,6 +109,29 @@ public final class Wire {
     }
 
     /**
+     * The wire value of an open enum value.
+     *
+     * @param v the value, or null
+     * @return its wire string, or null
+     */
+    public static String enumValue(OpenEnumValue v) {
+        return v == null ? null : v.value();
+    }
+
+    /**
+     * The wire values of a list of open enum values.
+     *
+     * @param v the values, or null
+     * @return their wire strings, or null
+     */
+    public static List<String> enumValues(List<? extends OpenEnumValue> v) {
+        if (v == null) return null;
+        List<String> out = new ArrayList<>(v.size());
+        for (OpenEnumValue x : v) out.add(x == null ? null : x.value());
+        return out;
+    }
+
+    /**
      * Converts a string value.
      *
      * @param v parsed JSON

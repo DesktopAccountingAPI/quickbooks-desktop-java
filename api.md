@@ -2,7 +2,7 @@
 
 # API reference (Java)
 
-Every resource method of `DesktopAccountingApiClient`, generated from the API contract (OpenAPI 3.1.0, API version 1.0.0, sha256 `f4cd9b5c733e`). Models are in `com.desktopaccountingapi.quickbooksdesktop.models`; services in `com.desktopaccountingapi.quickbooksdesktop.services`.
+Every resource method of `DesktopAccountingApiClient`, generated from the API contract (OpenAPI 3.1.0, API version 1.0.0, sha256 `149fc7b0599d`). Models are in `com.desktopaccountingapi.quickbooksdesktop.models`; services in `com.desktopaccountingapi.quickbooksdesktop.services`.
 
 Every method also has overloads without `RequestOptions` and, where the parameters are optional, without the parameter object. Non-list methods have a `...WithResponse(...)` variant returning `ApiResponse<T>`. Methods marked *async* are also available through `enqueue()` and return `RequestHandle<T>`.
 
@@ -173,9 +173,9 @@ Every method also has overloads without `RequestOptions` and, where the paramete
 ## `client.qbd().customFieldDefinitions()`
 
 - `CustomFieldDefinition create(CustomFieldDefinitionCreateInput params, RequestOptions options)`<br>`POST /v1/quickbooks-desktop/custom-field-definitions` (async, write): Create a custom field definition
-- `DeletedCustomFieldDefinition delete(String name, CustomFieldDefinitionDeleteParams params, RequestOptions options)`<br>`DELETE /v1/quickbooks-desktop/custom-field-definitions/{name}` (async, write): Request deletion of a private custom field definition
+- `CustomFieldDefinitionDeleted delete(String definitionName, CustomFieldDefinitionDeleteParams params, RequestOptions options)`<br>`DELETE /v1/quickbooks-desktop/custom-field-definitions/{definitionName}` (async, write): Request deletion of a private custom field definition
 - `CustomFieldDefinitionList list(CustomFieldDefinitionListParams params, RequestOptions options)`<br>`GET /v1/quickbooks-desktop/custom-field-definitions` (async): List custom field definitions
-- `CustomFieldDefinition update(String name, CustomFieldDefinitionUpdateInput params, RequestOptions options)`<br>`POST /v1/quickbooks-desktop/custom-field-definitions/{name}` (async, write): Update a custom field definition
+- `CustomFieldDefinition update(String definitionName, CustomFieldDefinitionUpdateInput params, RequestOptions options)`<br>`POST /v1/quickbooks-desktop/custom-field-definitions/{definitionName}` (async, write): Update a custom field definition
 
 ## `client.qbd().customerMessages()`
 
@@ -617,7 +617,7 @@ Every method also has overloads without `RequestOptions` and, where the paramete
 
 - `Pager<Transaction> list(TransactionListParams params, RequestOptions options)`<br>`GET /v1/quickbooks-desktop/transactions` (paginated, async): List transactions
 - `Transaction retrieve(String id, RequestOptions options)`<br>`GET /v1/quickbooks-desktop/transactions/{id}` (async): Retrieve a transaction
-- `ClearedStatus updateClearedStatus(String id, ClearedStatusUpdateInput params, RequestOptions options)`<br>`POST /v1/quickbooks-desktop/transactions/{id}/cleared-status` (async, write): Update the cleared status of a transaction
+- `TransactionClearedStatus updateClearedStatus(String id, ClearedStatusUpdateInput params, RequestOptions options)`<br>`POST /v1/quickbooks-desktop/transactions/{id}/cleared-status` (async, write): Update the cleared status of a transaction
 
 ## `client.qbd().transfers()`
 
@@ -629,7 +629,6 @@ Every method also has overloads without `RequestOptions` and, where the paramete
 ## `client.qbd().unitOfMeasureSets()`
 
 - `UnitOfMeasureSet create(UnitOfMeasureSetCreateInput params, RequestOptions options)`<br>`POST /v1/quickbooks-desktop/unit-of-measure-sets` (async, write): Create an unit of measure set
-- `UnitOfMeasureSetDeleted delete(String id, UnitOfMeasureSetDeleteParams params, RequestOptions options)`<br>`DELETE /v1/quickbooks-desktop/unit-of-measure-sets/{id}` (async, write): Delete an unit of measure set
 - `UnitOfMeasureSetList list(UnitOfMeasureSetListParams params, RequestOptions options)`<br>`GET /v1/quickbooks-desktop/unit-of-measure-sets` (async): List unit of measure sets
 - `UnitOfMeasureSet retrieve(String id, RequestOptions options)`<br>`GET /v1/quickbooks-desktop/unit-of-measure-sets/{id}` (async): Retrieve an unit of measure set
 
