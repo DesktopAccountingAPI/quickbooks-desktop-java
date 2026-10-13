@@ -371,7 +371,7 @@ public final class ClientCore {
      * outcome ({@code pending} for a write, {@code not_applicable} for a read).
      */
     private static String pendingRequestId(ApiException e) {
-        if (e.status() == null || e.status() != 504 || !"QBD_REQUEST_TIMEOUT".equals(e.code())) return null;
+        if (e.status() != 504 || !"QBD_REQUEST_TIMEOUT".equals(e.code())) return null;
         Object id = e.details().get("requestId");
         return id instanceof String && !((String) id).isEmpty() ? (String) id : null;
     }

@@ -15,6 +15,7 @@ import com.desktopaccountingapi.quickbooksdesktop.core.Transport;
 import com.desktopaccountingapi.quickbooksdesktop.errors.ApiConnectionException;
 import com.desktopaccountingapi.quickbooksdesktop.errors.ApiException;
 import com.desktopaccountingapi.quickbooksdesktop.errors.CursorExpiredException;
+import com.desktopaccountingapi.quickbooksdesktop.errors.CursorExpiredReason;
 import com.desktopaccountingapi.quickbooksdesktop.errors.DaapiException;
 import com.desktopaccountingapi.quickbooksdesktop.errors.IntegrationConnectionException;
 import com.desktopaccountingapi.quickbooksdesktop.errors.InvalidRequestException;
@@ -284,7 +285,8 @@ class ClientTest {
         CursorExpiredException e = assertThrows(CursorExpiredException.class,
             () -> client(stub, EU).qbd().invoices().list(new InvoiceListParams().limit(2)).firstPage());
         assertTrue(e instanceof InvalidRequestException);
-        assertEquals("idle_timeout", e.reason());
+        assertEquals(CursorExpiredReason.IDLE_TIMEOUT, e.reason());
+        assertEquals(CursorExpiredReason.Known.IDLE_TIMEOUT, e.reason().known());
         assertEquals(4, e.pagesServed());
     }
 

@@ -326,6 +326,8 @@ class ConformanceTest {
         if (c == OffsetDateTime.class) return OffsetDateTime.parse((String) v);
         if (InputObject.class.isAssignableFrom(c)) return build(c, map(v));
         if (c == BatchRequestInput.class) return buildBatchMember(map(v));
+        // Typed enums (gap G4): open enum classes take any string through of(String).
+        if (com.desktopaccountingapi.quickbooksdesktop.core.OpenEnumValue.class.isAssignableFrom(c)) return c.getMethod("of", String.class).invoke(null, v);
         throw new IllegalArgumentException("cannot convert fixture value to " + c);
     }
 
@@ -446,7 +448,7 @@ class ConformanceTest {
             Map<String, Object> hd = map(expected.get("handle"));
             assertNotNull(out.handle, name + ": no handle" + (out.error != null ? " (raised " + out.error + ")" : ""));
             if (hd.containsKey("id")) assertEquals(hd.get("id"), out.handle.id(), name + " handle.id");
-            if (hd.containsKey("status")) assertEquals(hd.get("status"), out.handle.request().status(), name + " handle.status");
+            if (hd.containsKey("status")) assertEquals(hd.get("status"), out.handle.request().status().value(), name + " handle.status");
         }
         if (expected.containsKey("response")) {
             Map<String, Object> r = map(expected.get("response"));

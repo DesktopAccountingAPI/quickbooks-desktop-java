@@ -117,13 +117,14 @@ public class ApiException extends DaapiException {
     }
 
     /**
-     * HTTP status of the response. For errors read from a request resource this is the error's
-     * {@code httpStatusCode}, which can be null.
+     * HTTP status of the response. For an error read from a request resource it is the error's
+     * {@code httpStatusCode}.
      *
-     * @return the status, or null
+     * @return the status, or 0 when neither is known
      */
-    public Integer status() {
-        return info.status;
+    public int status() {
+        if (info.status != null) return info.status;
+        return info.httpStatusCode != null ? info.httpStatusCode : 0;
     }
 
     /**
@@ -230,10 +231,10 @@ public class ApiException extends DaapiException {
     /**
      * Whether repeating the identical request can succeed without changes.
      *
-     * @return the flag, or null if the body was not JSON
+     * @return the flag; false when the body was not JSON
      */
-    public Boolean retryable() {
-        return info.retryable;
+    public boolean retryable() {
+        return Boolean.TRUE.equals(info.retryable);
     }
 
     /**
