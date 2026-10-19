@@ -171,6 +171,7 @@ class ConformanceTest {
         Map<String, Object> cc = map(sc.get("client"));
         Map<String, Object> call = map(sc.get("call"));
         Outcome out = new Outcome();
+        long started = System.nanoTime();
         try {
             DesktopAccountingApiClient.Builder b = DesktopAccountingApiClient.builder()
                 .apiKey((String) (cc.containsKey("apiKey") ? cc.get("apiKey") : fixtures.get("apiKey")))
@@ -184,13 +185,22 @@ class ConformanceTest {
             Object timeout = cc.containsKey("timeoutMs") ? cc.get("timeoutMs") : defaults.get("timeoutMs");
             if (timeout != null) b.timeout(Duration.ofMillis(((BigDecimal) timeout).longValueExact()));
             DesktopAccountingApiClient client = b.build();
+            started = System.nanoTime();
             invoke(client, call, out);
         } catch (Throwable t) {
             out.error = t;
         }
+        long elapsedMillis = (System.nanoTime() - started) / 1_000_000L;
         Map<String, Object> verify = map(Json.parse(control("GET", "/_control/verify/" + name)));
         assertEquals(Boolean.TRUE, verify.get("ok"), () -> name + ": mock server verification failed: " + verify.get("errors") + (out.error != null ? " (call raised " + out.error + ")" : ""));
         check(name, map(sc.get("outcome")), out);
+        // retryDelaysMs: the Java SDK has no hook to record its retry waits, so the runner checks that
+        // the call took at least their sum (it really waits). The mock server's verify step already
+        // checked the number of attempts.
+        long minimum = 0;
+        for (Object d : list(map(sc.get("outcome")).get("retryDelaysMs"))) minimum += ((BigDecimal) d).longValue();
+        final long expectedMinimum = minimum;
+        assertTrue(elapsedMillis >= expectedMinimum, () -> name + ": the call took " + elapsedMillis + " ms, less than the " + expectedMinimum + " ms of Retry-After it had to wait");
     }
 
     private static RequestOptions options(Map<String, Object> o) {
