@@ -2,7 +2,7 @@
 
 # API reference (Java)
 
-Every resource method of `DesktopAccountingApiClient`, generated from the API contract (OpenAPI 3.1.0, API version 1.0.0, sha256 `149fc7b0599d`). Models are in `com.desktopaccountingapi.quickbooksdesktop.models`; services in `com.desktopaccountingapi.quickbooksdesktop.services`.
+Every resource method of `DesktopAccountingApiClient`, generated from the API contract (OpenAPI 3.1.0, API version 1.0.0, sha256 `e5fba4897290`). Models are in `com.desktopaccountingapi.quickbooksdesktop.models`; services in `com.desktopaccountingapi.quickbooksdesktop.services`.
 
 Every method also has overloads without `RequestOptions` and, where the parameters are optional, without the parameter object. Non-list methods have a `...WithResponse(...)` variant returning `ApiResponse<T>`. Methods marked *async* are also available through `enqueue()` and return `RequestHandle<T>`.
 
@@ -27,6 +27,7 @@ Every method also has overloads without `RequestOptions` and, where the paramete
 - `Pager<EndUser> list(EndUserListParams params, RequestOptions options)`<br>`GET /v1/end-users` (paginated): List end users
 - `PassthroughResponse passthrough(String id, PassthroughInput params, RequestOptions options)`<br>`POST /v1/end-users/{id}/passthrough/{integrationSlug}` (async, write): Send a raw qbXML request
 - `String passthroughXml(String id, String xml, RequestOptions options)`<br>`POST /v1/end-users/{id}/passthrough/{integrationSlug}` with `application/xml`: raw qbXML variant
+- `EndUserConnection removeConnectionInstall(String id, String installId, RequestOptions options)`<br>`POST /v1/end-users/{id}/connection/installs/{installId}/remove` (write): Remove a Web Connector install
 - `EndUser resetCompanyFile(String id, EndUserResetCompanyFileInput params, RequestOptions options)`<br>`POST /v1/end-users/{id}/reset-company-file` (write): Reset the company file
 - `EndUser retrieve(String id, RequestOptions options)`<br>`GET /v1/end-users/{id}`: Retrieve an end user
 - `EndUserConnection retrieveConnection(String id, RequestOptions options)`<br>`GET /v1/end-users/{id}/connection`: Retrieve the connection
