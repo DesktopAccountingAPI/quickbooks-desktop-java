@@ -12,7 +12,7 @@ The Java client for [Desktop Accounting API](https://www.desktopaccountingapi.co
 
 ## Install
 
-The artifact is `com.desktopaccountingapi:quickbooks-desktop` on [Maven Central](https://central.sonatype.com/artifact/com.desktopaccountingapi/quickbooks-desktop). The current version is **0.10.0**.
+The artifact is `com.desktopaccountingapi:quickbooks-desktop` on [Maven Central](https://central.sonatype.com/artifact/com.desktopaccountingapi/quickbooks-desktop). The current version is **0.11.0**.
 
 Maven:
 
@@ -20,20 +20,20 @@ Maven:
 <dependency>
   <groupId>com.desktopaccountingapi</groupId>
   <artifactId>quickbooks-desktop</artifactId>
-  <version>0.10.0</version>
+  <version>0.11.0</version>
 </dependency>
 ```
 
 Gradle (Kotlin DSL):
 
 ```kotlin skip
-implementation("com.desktopaccountingapi:quickbooks-desktop:0.10.0")
+implementation("com.desktopaccountingapi:quickbooks-desktop:0.11.0")
 ```
 
 Gradle (Groovy DSL):
 
 ```groovy skip
-implementation 'com.desktopaccountingapi:quickbooks-desktop:0.10.0'
+implementation 'com.desktopaccountingapi:quickbooks-desktop:0.11.0'
 ```
 
 ## Requirements
@@ -356,6 +356,7 @@ Every exception extends `DaapiException` (unchecked).
 | `IntegrationException` | `INTEGRATION_ERROR`: QuickBooks rejected the request |
 | `OutcomeUnknownException` | `OUTCOME_UNKNOWN_ERROR`: a write may or may not have been applied |
 | `InternalException` | `INTERNAL_ERROR` |
+| `ResultUnavailableException` | The result is no longer available (subclass of `InternalException`). For an applied write (`outcome` `applied`), never send it again; read the object instead (`recoveredObjectId()` when set). For a read (`not_applicable`), it is safe to send it again |
 | `ApiConnectionException` / `ApiTimeoutException` | No response after all retries |
 | `RequestPendingException` | The call's time budget ran out while the request was still queued or running |
 | `WebhookVerificationException` | Webhook signature or timestamp check failed |
@@ -500,7 +501,7 @@ What changes beyond names: every write carries an `Idempotency-Key`, only safe f
 - The Java, Node.js, Python and .NET SDKs and the [MCP server](https://github.com/DesktopAccountingAPI/quickbooks-desktop-mcp) are released together with the same version number, generated from the same API contract.
 - Every release is listed in [CHANGELOG.md](CHANGELOG.md) and tagged `v<version>` on GitHub.
 - The HTTP API is versioned in its path (`/v1`) and is additive-only from launch day. After launch, a breaking change requires a new version or an announced deprecation. Additive changes include new operations, fields, enum values and error codes; accept fields and enum values you do not know. This HTTP policy is separate from SDK versioning.
-- `.daapi-sdk.json` records the contract's SHA-256 (`cc10a44bbe26...` for this release), and `SdkInfo.VERSION`, `SdkInfo.API_VERSION` and `SdkInfo.CONTRACT_SHA256` expose the same at runtime.
+- `.daapi-sdk.json` records the contract's SHA-256 (`b091ed70ce41...` for this release), and `SdkInfo.VERSION`, `SdkInfo.API_VERSION` and `SdkInfo.CONTRACT_SHA256` expose the same at runtime.
 
 ## Support
 
@@ -517,7 +518,7 @@ mise install
 mise run check   # build with -Xlint:all -Werror for Java 11, unit tests, conformance suite, javadoc, examples, README samples, Central bundle dry run
 ```
 
-To build from source, clone the repository and run `mvn -B install -DskipTests`; that puts `com.desktopaccountingapi:quickbooks-desktop:0.10.0` into your local Maven repository. Code under `src/main/java/com/desktopaccountingapi/quickbooksdesktop/{models,services}`, `DesktopAccountingApiClient.java` and this README are generated; `mise run check` compiles every Java sample in this README with `-Xlint:all -Werror` and runs the quickstart against the conformance mock server. See [CONTRIBUTING.md](CONTRIBUTING.md).
+To build from source, clone the repository and run `mvn -B install -DskipTests`; that puts `com.desktopaccountingapi:quickbooks-desktop:0.11.0` into your local Maven repository. Code under `src/main/java/com/desktopaccountingapi/quickbooksdesktop/{models,services}`, `DesktopAccountingApiClient.java` and this README are generated; `mise run check` compiles every Java sample in this README with `-Xlint:all -Werror` and runs the quickstart against the conformance mock server. See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## License
 

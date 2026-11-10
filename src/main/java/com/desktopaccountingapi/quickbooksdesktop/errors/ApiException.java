@@ -12,7 +12,8 @@ import java.util.Map;
  * <p>The SDK throws one subclass per error {@link #type()}: {@link InvalidRequestException},
  * {@link AuthenticationException}, {@link PermissionException}, {@link BillingException},
  * {@link RateLimitException}, {@link IntegrationConnectionException}, {@link IntegrationException},
- * {@link OutcomeUnknownException} and {@link InternalException}. An unknown type, or an error body
+ * {@link OutcomeUnknownException} and {@link InternalException} ({@link ResultUnavailableException}
+ * for an applied write whose result is not available). An unknown type, or an error body
  * that is not JSON, throws this base class. Compare {@link #code()} with the constants in
  * {@code models.ErrorCode}.
  *
@@ -75,7 +76,8 @@ public class ApiException extends DaapiException {
 
     /**
      * Builds the exception class that matches the error's {@code type} (and
-     * {@link CursorExpiredException} for {@code CURSOR_EXPIRED}).
+     * {@link CursorExpiredException} for {@code CURSOR_EXPIRED}, {@link ResultUnavailableException}
+     * for {@code details.reason} {@code result_unavailable}).
      *
      * @param info the error fields
      * @return the typed exception
@@ -101,6 +103,7 @@ public class ApiException extends DaapiException {
             case "OUTCOME_UNKNOWN_ERROR":
                 return new OutcomeUnknownException(info);
             case "INTERNAL_ERROR":
+                if (ResultUnavailableException.matches(info)) return new ResultUnavailableException(info);
                 return new InternalException(info);
             default:
                 return new ApiException(info);

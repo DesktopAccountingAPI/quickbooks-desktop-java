@@ -6,6 +6,7 @@ import com.desktopaccountingapi.quickbooksdesktop.errors.ApiException;
 import com.desktopaccountingapi.quickbooksdesktop.errors.ApiTimeoutException;
 import com.desktopaccountingapi.quickbooksdesktop.errors.DaapiException;
 import com.desktopaccountingapi.quickbooksdesktop.errors.RequestPendingException;
+import com.desktopaccountingapi.quickbooksdesktop.errors.ResultUnavailableException;
 import com.desktopaccountingapi.quickbooksdesktop.models.Request;
 import java.io.IOException;
 import java.net.URI;
@@ -216,10 +217,24 @@ public final class ClientCore {
     }
 
     <T> Page<T> fetchPage(OperationSpec op, String path, InputObject query, RequestOptions o, Function<Object, T> item) {
-        Transport.Response res = new Call(op, o).send(path, query, null, null, "application/json", false);
-        Object parsed = parseJson(op, res.body());
+        Call c = new Call(op, o);
+        Object parsed;
+        String requestId;
         try {
-            return Page.fromJson(parsed, item, res.headers().get("Daapi-Request-Id"));
+            Transport.Response res = c.send(path, query, null, null, "application/json", false);
+            parsed = parseJson(op, res.body());
+            requestId = res.headers().get("Daapi-Request-Id");
+        } catch (ApiException e) {
+            // A page still running after the server timeout is long-polled like any other call, never
+            // resent (review R3-04); the page belongs to the request that timed out.
+            String pending = pendingRequestId(e);
+            if (pending == null) throw e;
+            log("request " + pending + " still running after a server timeout; polling until the call deadline");
+            parsed = poll(pending, c.deadlineNanos, c.o, e, null).result;
+            requestId = pending;
+        }
+        try {
+            return Page.fromJson(parsed, item, requestId);
         } catch (RuntimeException e) {
             throw new DaapiException("Could not parse the " + op.operationId() + " response: " + e.getMessage(), e);
         }
@@ -293,6 +308,12 @@ public final class ClientCore {
                 // QuickBooks answered, but the API could not map the answer (for example
                 // QBD_RESPONSE_UNREADABLE, outcome applied): throw that catalog error (codex review #4).
                 if (m.get("error") instanceof Map) throw errorFromRequest(id, status, m.get("error"));
+                // A single write the platform recovered after a lost acknowledgement: QuickBooks applied
+                // it, but its response body never arrived, so there is no result to return (review R3-03).
+                // This comes before the expiry check: an expired recovered write is still this error (SA-03).
+                if (m.get("result") == null && (Boolean.TRUE.equals(m.get("recovered")) || m.get("recoveredObjectId") instanceof String)) {
+                    throw recoveredWriteError(id, m.get("recoveredObjectId") instanceof String ? (String) m.get("recoveredObjectId") : null);
+                }
                 if (Boolean.TRUE.equals(m.get("resultExpired"))) {
                     throw new DaapiException("Request " + id + " succeeded, but its result is no longer stored (resultExpired).");
                 }
@@ -350,6 +371,23 @@ public final class ClientCore {
         } catch (RuntimeException e) {
             throw new DaapiException("Could not parse the request resource: " + e.getMessage(), e);
         }
+    }
+
+    private static ResultUnavailableException recoveredWriteError(String id, String objectId) {
+        Map<String, Object> details = new LinkedHashMap<>();
+        details.put("requestId", id);
+        details.put("reason", "result_unavailable");
+        details.put("recoveredObjectId", objectId);
+        Map<String, Object> e = new LinkedHashMap<>();
+        e.put("type", "INTERNAL_ERROR");
+        e.put("code", "INTERNAL_ERROR");
+        e.put("message", "Request " + id + " completed and QuickBooks applied it, but its result is not available: the platform recovered the write without QuickBooks' response. "
+            + (objectId == null ? "" : "Retrieve the object by its ID " + objectId + ". ") + "Do not send it again.");
+        e.put("requestId", id);
+        e.put("retryable", Boolean.FALSE);
+        e.put("outcome", "applied");
+        e.put("details", details);
+        return new ResultUnavailableException(ApiErrorInfo.of(null, e, Headers.empty(), null, null));
     }
 
     private static ApiException errorFromRequest(String id, String status, Object error) {
@@ -550,8 +588,9 @@ public final class ClientCore {
                 ApiException err = toException(res);
                 Long retryAfter = Retry.retryAfterMillis(res.headers().get("Retry-After"), Instant.now());
                 long delay = retryAfter != null ? retryAfter : Retry.backoffMillis(attempt, JITTER);
-                // A request still running after the server timeout is long-polled, never resent.
-                boolean retry = pendingRequestId(err) == null && attempt < maxRetries && Retry.shouldRetry(res.status(), res.headers().get("Daapi-Should-Retry"), err.outcome())
+                // A request still running after the server timeout is long-polled, never resent; an applied
+                // write whose result is gone is never resent either.
+                boolean retry = pendingRequestId(err) == null && !(err instanceof ResultUnavailableException) && attempt < maxRetries && Retry.shouldRetry(res.status(), res.headers().get("Daapi-Should-Retry"), err.outcome())
                     && (retryAfter == null || retryAfter <= Retry.MAX_RETRY_AFTER_MILLIS) && retryFits(delay);
                 if (!retry) throw err;
                 sleep(delay, "after HTTP " + res.status());

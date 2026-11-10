@@ -101,6 +101,8 @@ public final class RequestHandle<T> {
      *
      * @return the result
      * @throws RequestPendingException if the request has not finished in time (it keeps running)
+     * @throws com.desktopaccountingapi.quickbooksdesktop.errors.ResultUnavailableException if the
+     *     write was applied but has no result body (see its {@code recoveredObjectId()})
      * @throws com.desktopaccountingapi.quickbooksdesktop.errors.ApiException if it failed, was
      *     canceled, or its outcome is unknown
      */
@@ -117,6 +119,8 @@ public final class RequestHandle<T> {
      * @param timeout total time to wait
      * @return the result
      * @throws RequestPendingException if the request has not finished in time or a poll failed (it keeps running)
+     * @throws com.desktopaccountingapi.quickbooksdesktop.errors.ResultUnavailableException if the
+     *     write was applied but has no result body (see its {@code recoveredObjectId()})
      * @throws com.desktopaccountingapi.quickbooksdesktop.errors.ApiException if it failed, was
      *     canceled, or its outcome is unknown
      */
@@ -137,6 +141,8 @@ public final class RequestHandle<T> {
      *
      * @return the result
      * @throws RequestPendingException if the request has not finished yet
+     * @throws com.desktopaccountingapi.quickbooksdesktop.errors.ResultUnavailableException if the
+     *     write was applied but has no result body (see its {@code recoveredObjectId()})
      * @throws com.desktopaccountingapi.quickbooksdesktop.errors.ApiException if it failed, was
      *     canceled, or its outcome is unknown
      */

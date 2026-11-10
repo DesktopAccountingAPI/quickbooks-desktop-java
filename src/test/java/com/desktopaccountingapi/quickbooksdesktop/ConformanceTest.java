@@ -29,6 +29,7 @@ import com.desktopaccountingapi.quickbooksdesktop.errors.OutcomeUnknownException
 import com.desktopaccountingapi.quickbooksdesktop.errors.PermissionException;
 import com.desktopaccountingapi.quickbooksdesktop.errors.RateLimitException;
 import com.desktopaccountingapi.quickbooksdesktop.errors.RequestPendingException;
+import com.desktopaccountingapi.quickbooksdesktop.errors.ResultUnavailableException;
 import com.desktopaccountingapi.quickbooksdesktop.errors.WebhookVerificationException;
 import com.desktopaccountingapi.quickbooksdesktop.models.Batch;
 import com.desktopaccountingapi.quickbooksdesktop.models.BatchRequestInput;
@@ -91,6 +92,7 @@ class ConformanceTest {
         CLASSES.put("IntegrationError", IntegrationException.class);
         CLASSES.put("OutcomeUnknownError", OutcomeUnknownException.class);
         CLASSES.put("InternalError", InternalException.class);
+        CLASSES.put("ResultUnavailableError", ResultUnavailableException.class);
         CLASSES.put("CursorExpiredError", CursorExpiredException.class);
         CLASSES.put("RequestPendingError", RequestPendingException.class);
         CLASSES.put("ApiConnectionError", ApiConnectionException.class);
@@ -507,6 +509,9 @@ class ConformanceTest {
             actual.put("pagesServed", c.pagesServed());
             actual.put("lastId", c.lastId());
             actual.put("lastUpdatedAt", c.lastUpdatedAt());
+        }
+        if (t instanceof ResultUnavailableException) {
+            actual.put("recoveredObjectId", ((ResultUnavailableException) t).recoveredObjectId());
         }
         if (t instanceof RequestPendingException) {
             RequestPendingException p = (RequestPendingException) t;

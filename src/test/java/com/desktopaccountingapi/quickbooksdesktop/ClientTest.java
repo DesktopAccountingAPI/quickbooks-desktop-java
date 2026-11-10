@@ -8,6 +8,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.desktopaccountingapi.quickbooksdesktop.core.Headers;
+import com.desktopaccountingapi.quickbooksdesktop.core.RequestHandle;
 import com.desktopaccountingapi.quickbooksdesktop.core.RequestOptions;
 import com.desktopaccountingapi.quickbooksdesktop.core.Retry;
 import com.desktopaccountingapi.quickbooksdesktop.core.SdkInfo;
@@ -18,9 +19,12 @@ import com.desktopaccountingapi.quickbooksdesktop.errors.CursorExpiredException;
 import com.desktopaccountingapi.quickbooksdesktop.errors.CursorExpiredReason;
 import com.desktopaccountingapi.quickbooksdesktop.errors.DaapiException;
 import com.desktopaccountingapi.quickbooksdesktop.errors.IntegrationConnectionException;
+import com.desktopaccountingapi.quickbooksdesktop.errors.InternalException;
 import com.desktopaccountingapi.quickbooksdesktop.errors.InvalidRequestException;
+import com.desktopaccountingapi.quickbooksdesktop.errors.ResultUnavailableException;
 import com.desktopaccountingapi.quickbooksdesktop.models.BarcodeCreateInput;
 import com.desktopaccountingapi.quickbooksdesktop.models.ErrorCode;
+import com.desktopaccountingapi.quickbooksdesktop.models.Invoice;
 import com.desktopaccountingapi.quickbooksdesktop.models.InvoiceCreateInput;
 import com.desktopaccountingapi.quickbooksdesktop.models.InvoiceLine;
 import com.desktopaccountingapi.quickbooksdesktop.models.InvoiceLineCreateInput;
@@ -39,6 +43,8 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Random;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 class ClientTest {
     static final String KEY = "sk_test_Conformance0Key0For0SDK0Tests000010nQFLR";
@@ -343,6 +349,23 @@ class ClientTest {
             double base = Math.min(8000, 500 * Math.pow(2, attempt));
             assertTrue(ms <= base && ms >= base * 0.75, attempt + ": " + ms);
         }
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = {false, true})
+    void resultOfRecoveredWriteThrowsResultUnavailableWithObjectId(boolean resultExpired) {
+        String queued = "{\"id\":\"req_1\",\"objectType\":\"request\",\"status\":\"queued\",\"result\":null}";
+        String recovered = "{\"id\":\"req_1\",\"objectType\":\"request\",\"status\":\"succeeded\",\"outcome\":\"applied\",\"result\":null,"
+            + "\"resultExpired\":" + resultExpired + ",\"recovered\":true,\"recoveredObjectId\":\"8000000C-1700000000\"}";
+        Stub stub = new Stub(json(202, queued), json(200, recovered));
+        RequestHandle<Invoice> handle = client(stub, EU).qbd().invoices().enqueue().create(new InvoiceCreateInput("80000001-1700000000"), RequestOptions.idempotent("key-1"));
+        ResultUnavailableException e = assertThrows(ResultUnavailableException.class, handle::result);
+        assertTrue(e instanceof InternalException);
+        assertEquals("req_1", e.requestId());
+        assertEquals("applied", e.outcome());
+        assertEquals("8000000C-1700000000", e.recoveredObjectId());
+        assertFalse(e.retryable());
+        assertEquals("key-1", e.idempotencyKey());
     }
 
     @Test

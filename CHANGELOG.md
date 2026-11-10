@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+## 0.11.0 (2026-11-10)
+
+- A list page (the first page or a later one) that gets `504 QBD_REQUEST_TIMEOUT` is no longer thrown at once: the SDK long-polls the request until it ends or the call's time budget passes, like every other call and like the other SDKs, and never resends the page. It throws `RequestPendingException` if the request is still running at the deadline.
+- A write whose outcome was unknown and that the platform later recovered (request `succeeded`, `outcome` `applied`, `recovered: true`, `result` null, `recoveredObjectId` set) throws the new `ResultUnavailableException` from `RequestHandle.await()`, `RequestHandle.result()` and the long poll after `504 QBD_REQUEST_TIMEOUT`. They threw a `DaapiException` from parsing the missing result. It extends `InternalException` and carries `requestId()`, `outcome()` `applied`, `retryable()` false and `recoveredObjectId()`; retrieve the object by that ID and do not send the write again. This holds also when the result is past retention (`resultExpired` true).
+- `500 INTERNAL_ERROR` with `details.reason` `result_unavailable` (the result is no longer available) throws `ResultUnavailableException` (`recoveredObjectId()` null) and is never retried, even when `Daapi-Should-Retry` says true. For a write that was applied (`outcome: applied`), never send it again and read the object instead; for a read (`outcome: not_applicable`), it is safe to send the read again.
+- `PriceLevelListParams.itemId(String)` is an alias of `itemIds(String)` with Conductor's name for this filter, so Conductor code ports unchanged. Both take one item ID; setting both to different values returns `400 INVALID_PARAMETER`. `BatchPriceLevelListInputQuery` has the same alias for batch members.
+
 ## 0.10.0 (2026-10-27)
 
 - The request resource (`recoveredObjectId`) names the object a write created or changed when the platform recovered that write after a lost acknowledgement. QuickBooks' response body to such a write was never received, so a request retrieved with `requests().retrieve()` that shows `succeeded`, `applied` and `recovered: true` keeps `result` null: retrieve the object by this id. It is null for every other request. A typed batch recovered that way still carries each create member's own `recoveredObjectId` in `result`; the request-level field holds the first write member's.
