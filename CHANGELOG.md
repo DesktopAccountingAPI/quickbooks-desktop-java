@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+## 0.11.1 (2026-11-17)
+
+- Released in lockstep with the other Desktop Accounting API packages; no entries for this package.
+
 ## 0.11.0 (2026-11-10)
 
 - A list page (the first page or a later one) that gets `504 QBD_REQUEST_TIMEOUT` is no longer thrown at once: the SDK long-polls the request until it ends or the call's time budget passes, like every other call and like the other SDKs, and never resends the page. It throws `RequestPendingException` if the request is still running at the deadline.
